@@ -5,6 +5,11 @@
 # Set CODESIGN_IDENTITY to force a specific identity.
 set -e
 cd "$(dirname "$0")"
+# Prefer the full Xcode toolchain when available: the Command Line Tools alone
+# fail to drive SwiftPM's default build system on recent macOS betas.
+if [ -z "$DEVELOPER_DIR" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
 swift build -c release --product FireTVRemoteApp
 swift build -c release --product FireTVHelper
 APP="FireTVRemoteBridge.app"

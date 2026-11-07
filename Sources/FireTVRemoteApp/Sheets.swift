@@ -400,6 +400,13 @@ struct MicSettings: View {
     func runAsAdmin(_ script: String, args: [String], done: @escaping (String?) -> Void) {
         busy = true
         let res = Bundle.main.resourcePath ?? ""
+        // Reject paths containing characters that could break the AppleScript string or shell quoting.
+        let unsafe: (String) -> Bool = { $0.contains("\"") || $0.contains("\\") || $0.contains("\n") || $0.contains("\r") }
+        guard !unsafe(res), !unsafe(script), !args.contains(where: unsafe) else {
+            busy = false
+            done("不正なパスが含まれています")
+            return
+        }
         let cmd = ([res + "/" + script] + args).map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: " ")
         let src = "do shell script \"/bin/sh \(cmd)\" with administrator privileges"
         DispatchQueue.global().async {

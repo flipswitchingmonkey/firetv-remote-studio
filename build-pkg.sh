@@ -10,6 +10,7 @@ cp -R FireTVRemoteBridge.app "pkgroot/app/Applications/Fire TV Remote Studio.app
 cp -R hal/build/FireTVRemoteMicrophone.driver pkgroot/driver/Library/Audio/Plug-Ins/HAL/
 cat > pkgroot/scripts/postinstall <<'POST'
 #!/bin/sh
+if [ -L /Users/Shared/FireTVRemoteStudio ]; then rm -f /Users/Shared/FireTVRemoteStudio; fi
 mkdir -p /Users/Shared/FireTVRemoteStudio && chmod 1777 /Users/Shared/FireTVRemoteStudio
 chown -R root:wheel /Library/Audio/Plug-Ins/HAL/FireTVRemoteMicrophone.driver
 # make the newly installed HAL plug-in load now (launchd relaunches coreaudiod)
