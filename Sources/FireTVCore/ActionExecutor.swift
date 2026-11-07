@@ -88,16 +88,33 @@ public final class ActionExecutor {
             emit(.failed(c.display, "Accessibility permission required to send keys")); Self.promptAccessibility(); return false
         }
         if !heldKeys.contains(c) { heldKeys.append(c) }
-        Self.post(c, down: true); emit(.started("Key\(c.display) (pressing)")); return true
+        if c.modifierOnly { refreshModifierFlags() } else { Self.post(c, down: true, extraFlags: heldModifierFlags) }
+        emit(.started("Key\(c.display) (pressing)")); return true
     }
     public func keyUp(_ c: KeyCombo) {
         guard let i = heldKeys.firstIndex(of: c) else { return }
         heldKeys.remove(at: i)
-        Self.post(c, down: false); emit(.finished("Key\(c.display) (pressing)"))
+        if c.modifierOnly { refreshModifierFlags() } else { Self.post(c, down: false, extraFlags: heldModifierFlags) }
+        emit(.finished("Key\(c.display) (pressing)"))
     }
     public func releaseAllKeys() {
-        for c in heldKeys { Self.post(c, down: false) }; heldKeys.removeAll()
+        let hadModifiers = heldKeys.contains { $0.modifierOnly }
+        let modifiers = heldModifierFlags
+        for c in heldKeys where !c.modifierOnly { Self.post(c, down: false, extraFlags: modifiers) }
+        heldKeys.removeAll()
+        if hadModifiers { Self.postFlagsChanged([]) }
         for (_, t) in heldMedia { t.cancel() }; for m in heldMedia.keys { Self.postMediaKey(m.nxKeyType, down: false) }; heldMedia.removeAll()
+    }
+    /// Modifiers currently held by modifier-only actions.
+    private var heldModifierFlags: CGEventFlags {
+        var flags = CGEventFlags()
+        for c in heldKeys where c.modifierOnly { flags.formUnion(Self.flags(for: c)) }
+        return flags
+    }
+    /// Post the union of every held modifier-only combo, so releasing one does
+    /// not release modifiers still held by another remote button.
+    private func refreshModifierFlags() {
+        Self.postFlagsChanged(heldModifierFlags)
     }
 
     // MARK: held media keys (volume/transport repeat while the remote button stays down)
@@ -126,12 +143,28 @@ public final class ActionExecutor {
 
     // MARK: key / media posting
 
-    static func post(_ c: KeyCombo, down: Bool) {
+    static func flags(for c: KeyCombo) -> CGEventFlags {
         var flags = CGEventFlags()
+        if c.function { flags.insert(.maskSecondaryFn) }
         if c.command { flags.insert(.maskCommand) }
         if c.shift { flags.insert(.maskShift) }
         if c.option { flags.insert(.maskAlternate) }
         if c.control { flags.insert(.maskControl) }
+        return flags
+    }
+
+    /// Set the global modifier state directly (needed when no regular key is sent).
+    static func postFlagsChanged(_ flags: CGEventFlags) {
+        guard let ev = CGEvent(source: nil) else { return }
+        ev.type = .flagsChanged
+        ev.flags = flags
+        ev.post(tap: .cghidEventTap)
+    }
+
+    static func post(_ c: KeyCombo, down: Bool, extraFlags: CGEventFlags = []) {
+        guard !c.modifierOnly else { return }
+        var flags = Self.flags(for: c)
+        flags.formUnion(extraFlags)
         let src = CGEventSource(stateID: .combinedSessionState)
         guard let ev = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(c.keyCode), keyDown: down) else { return }
         ev.flags = flags
@@ -139,11 +172,14 @@ public final class ActionExecutor {
     }
 
     static func postKey(_ c: KeyCombo) {
-        var flags = CGEventFlags()
-        if c.command { flags.insert(.maskCommand) }
-        if c.shift { flags.insert(.maskShift) }
-        if c.option { flags.insert(.maskAlternate) }
-        if c.control { flags.insert(.maskControl) }
+        if c.modifierOnly {
+            let flags = Self.flags(for: c)
+            Self.postFlagsChanged(flags)
+            usleep(10_000)
+            Self.postFlagsChanged([])
+            return
+        }
+        let flags = Self.flags(for: c)
         let src = CGEventSource(stateID: .combinedSessionState)
         guard let down = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(c.keyCode), keyDown: true),
               let up = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(c.keyCode), keyDown: false) else { return }

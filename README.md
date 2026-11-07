@@ -15,7 +15,7 @@ Amazon Fire TV リモコン（Bluetooth, "Amazon Remote"）を Mac のカスタ�
 ## 機能
 
 - **全ボタンのリマップ**: アプリボタン A1〜A4（第 3 世代のみ）、ホーム、メニュー、マイク、テレビマークに加え、排他モードでは音量・再生・方向キー・決定・戻る・電源も割り当て可
-- **アクション**: macOS ショートカット（`shortcuts` CLI の一覧から選択）／キー送信（押している間ホールド）／メディアキー／アプリ起動／URL／マクロ
+- **アクション**: macOS ショートカット（`shortcuts` CLI の一覧から選択）／キー送信（押している間ホールド、fn 修飾・修飾キーのみのホールド対応）／メディアキー／アプリ起動／URL／マクロ
 - **レイヤー**: MO（押している間）、TG（トグル、排他）、TO（切替）、DF（デフォルト変更）。未設定ボタンは下位レイヤーを継承、ボタンごとに「デフォルト動作／無効／透過／カスタム」
 - **仮想マイク**: リモコンのマイクボタンを押している間だけ声が「Fire TV Remote Microphone」に入る（Discord / QuickTime 等で確認）
 - **メニューバー常駐**、ログイン時自動起動、設定のインポート／エクスポート、ライト／ダーク対応
@@ -47,7 +47,7 @@ open FireTVRemoteBridge.app
 ```
 
 ```bash
-swift build && .build/debug/FireTVTests   # テスト（146 件）
+swift build && .build/debug/FireTVTests   # テスト（156 件）
 ./build-pkg.sh                             # → dist/FireTVRemoteStudio.pkg
 ```
 

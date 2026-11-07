@@ -258,16 +258,22 @@ struct KeyComboEditor: View {
     let combo: KeyCombo
     let onChange: (KeyCombo) -> Void
     var body: some View {
+        let noModifiers = !combo.function && !combo.command && !combo.shift && !combo.option && !combo.control
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Toggle("⌘", isOn: Binding(get: { combo.command }, set: { var c = combo; c.command = $0; onChange(c) }))
                 Toggle("⇧", isOn: Binding(get: { combo.shift }, set: { var c = combo; c.shift = $0; onChange(c) }))
                 Toggle("⌥", isOn: Binding(get: { combo.option }, set: { var c = combo; c.option = $0; onChange(c) }))
                 Toggle("⌃", isOn: Binding(get: { combo.control }, set: { var c = combo; c.control = $0; onChange(c) }))
+                Toggle("fn", isOn: Binding(get: { combo.function }, set: { var c = combo; c.function = $0; onChange(c) }))
+                    .help("Function (Fn) modifier: Fn+F3 sends a real function key")
                 Spacer()
                 Text(combo.display).font(Theme.bodyStrong)
             }
             .toggleStyle(.button).controlSize(.small)
+            Toggle("Modifier key only", isOn: Binding(get: { combo.modifierOnly }, set: { var c = combo; c.modifierOnly = $0; onChange(c) }))
+                .toggleStyle(.checkbox).controlSize(.small)
+                .help("Send only the selected modifiers; hold the remote button to keep them down")
             Picker("Key", selection: Binding(get: { combo.keyCode }, set: { code in
                 if let e = KeyTable.all.first(where: { $0.code == code }) { var c = combo; c.keyCode = e.code; c.keyName = e.name; onChange(c) }
             })) {
@@ -276,8 +282,13 @@ struct KeyComboEditor: View {
                 Section("Symbols") { ForEach(KeyTable.symbols) { Text($0.name).tag($0.code) } }
                 Section("Function") { ForEach(KeyTable.function) { Text($0.name).tag($0.code) } }
                 Section("Operation") { ForEach(KeyTable.navigation) { Text($0.name).tag($0.code) } }
-            }.labelsHidden()
-            Text("Press and hold the key while pressing the button on the remote control (long press · Push-to-Talk compatible)").font(Theme.caption).foregroundStyle(Theme.text2)
+            }.labelsHidden().disabled(combo.modifierOnly)
+            if combo.modifierOnly {
+                Text(noModifiers ? "Select at least one modifier above." : "No regular key is sent. Hold the remote button to hold the selected modifiers down (for example fn).")
+                    .font(Theme.caption).foregroundStyle(noModifiers ? Theme.warning : Theme.text2)
+            } else {
+                Text("Press and hold the key while pressing the button on the remote control (long press · Push-to-Talk compatible)").font(Theme.caption).foregroundStyle(Theme.text2)
+            }
             if !ActionExecutor.accessibilityTrusted {
                 Banner(icon: "hand.raised", text: "Accessibility permissions are required to send keys (setting → permissions).")
             }

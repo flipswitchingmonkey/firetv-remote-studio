@@ -110,6 +110,7 @@ public enum ButtonTable {
         .a3: ButtonCode(reportID: 0xEF, code: 0xA3),
         .a4: ButtonCode(reportID: 0xEF, code: 0xA4),
         .tv: ButtonCode(reportID: 0x02, code: 0x8D),
+        .mic: ButtonCode(reportID: 0x02, code: 0x0221),
         .up: ButtonCode(reportID: 0x01, code: 0x52),
         .down: ButtonCode(reportID: 0x01, code: 0x51),
         .left: ButtonCode(reportID: 0x01, code: 0x50),

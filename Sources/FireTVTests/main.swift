@@ -64,6 +64,8 @@ do {
 // MARK: 3. Button table
 section("button table")
 expect(ButtonTable.info(for: .a1, learned: [:]).restriction == .none, "A1 assignable")
+expect(ButtonTable.info(for: .mic, learned: [:], exclusive: true).restriction == .none, "mic assignable in exclusive mode")
+expect(ButtonTable.info(for: .mic, learned: [:], exclusive: false).restriction == .osHandled, "mic is OS-handled in normal mode")
 expect(ButtonTable.info(for: .tv, learned: [:]).restriction == .none, "TV mark assignable")
 expect(ButtonTable.info(for: .up, learned: [:]).restriction == .osHandled, "arrow is OS-handled")
 expect(ButtonTable.info(for: .playPause, learned: [:]).restriction == .osHandled, "play is OS-handled")
@@ -78,6 +80,23 @@ expect(HIDMonitor.productIDs.contains(0x0413), "2nd gen product ID matched")
 expect(HIDMonitor.modelName(for: 0x0413).contains("2nd Gen"), "2nd gen has a friendly name")
 expect(HIDMonitor.modelName(for: 0x042F).contains("3rd Gen"), "3rd gen has a friendly name")
 expect(HIDMonitor.modelName(for: 0x1234) == "Amazon Remote", "unknown product ID falls back")
+
+// MARK: 3c. Fn modifier
+section("fn key modifier")
+do {
+    let old = Data(#"{"keyCode":99,"keyName":"F3","command":false,"shift":false,"option":false,"control":false}"#.utf8)
+    let oldCombo = try JSONDecoder().decode(KeyCombo.self, from: old)
+    expect(!oldCombo.function, "old key combo decodes without fn")
+    expect(!oldCombo.modifierOnly, "old key combo decodes without modifier-only")
+    let fn = KeyCombo(keyCode: 99, keyName: "F3", function: true)
+    expect(fn.display == "fn F3", "fn shown in display")
+    expect(try JSONDecoder().decode(KeyCombo.self, from: JSONEncoder().encode(fn)) == fn, "fn round trips through config JSON")
+    expect(KeyCombo(keyCode: 99, keyName: "F3").display == "F3", "fn is off by default")
+    let fnOnly = KeyCombo(keyCode: 0, keyName: "", function: true, modifierOnly: true)
+    expect(fnOnly.display == "fn", "modifier-only fn has no key name")
+    expect(try JSONDecoder().decode(KeyCombo.self, from: JSONEncoder().encode(fnOnly)) == fnOnly, "modifier-only round trips")
+    expect(KeyCombo(keyCode: 99, keyName: "F3").modifierOnly == false, "modifier-only is off by default")
+}
 
 // MARK: 4. Layer engine
 section("layer engine")
