@@ -71,6 +71,14 @@ expect(ButtonTable.info(for: .home, learned: [:]).restriction == .codeUnknown, "
 expect(ButtonTable.info(for: .home, learned: [.home: ButtonCode(reportID: 0x02, code: 0x23)]).restriction == .none, "learned consumer code assignable")
 expect(ButtonTable.info(for: .home, learned: [.home: ButtonCode(reportID: 0x01, code: 0x29)]).restriction == .osHandled, "learned keyboard code OS-handled")
 
+// MARK: 3b. Supported device models
+section("supported remote models")
+expect(HIDMonitor.productIDs.contains(0x042F), "3rd gen product ID matched")
+expect(HIDMonitor.productIDs.contains(0x0413), "2nd gen product ID matched")
+expect(HIDMonitor.modelName(for: 0x0413).contains("2nd Gen"), "2nd gen has a friendly name")
+expect(HIDMonitor.modelName(for: 0x042F).contains("3rd Gen"), "3rd gen has a friendly name")
+expect(HIDMonitor.modelName(for: 0x1234) == "Amazon Remote", "unknown product ID falls back")
+
 // MARK: 4. Layer engine
 section("layer engine")
 func layers(_ n: Int) -> [Layer] { (0..<n).map { Layer(name: "L\($0)") } }
@@ -243,7 +251,7 @@ do {
     expect(e.press(.mute) == [] && e.release(.mute) == [], "disabled button does nothing")
     expect(e.press(.volumeUp) == [.execute(.shortcut(name: "S"))], "L0 custom action")
     _ = e.release(.volumeUp)
-    _ = e.update(layers: ls, defaultLayer: 1)
+    e.update(layers: ls, defaultLayer: 1)
     expect(e.resolve(.volumeUp) == .passthrough, "L1 explicit default overrides L0 custom")
     _ = e.press(.volumeDown)
     expect(e.releaseAll().contains(.release(.passthrough)), "releaseAll releases held passthrough")

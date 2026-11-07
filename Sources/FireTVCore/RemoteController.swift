@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import CoreAudio
+import FireTVIPC
 
 /// HID input → button identification → layer resolution → action execution.
 /// Also the observable model for the GUI.
@@ -109,9 +110,12 @@ public final class RemoteController: ObservableObject {
         guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &ids) == noErr else { return false }
         for id in ids {
             var uidAddr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceUID, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
-            var uid: CFString = "" as CFString
-            var sz = UInt32(MemoryLayout<CFString>.size)
-            if AudioObjectGetPropertyData(id, &uidAddr, 0, nil, &sz, &uid) == noErr, (uid as String) == deviceUID { return true }
+            // CoreAudio returns a +1 CFString here. Keeping it in `Unmanaged`
+            // avoids both the raw-pointer warning and leaking the string.
+            var uid: Unmanaged<CFString>?
+            var sz = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+            if AudioObjectGetPropertyData(id, &uidAddr, 0, nil, &sz, &uid) == noErr,
+               let uid, (uid.takeRetainedValue() as String) == deviceUID { return true }
         }
         return false
     }
@@ -154,6 +158,18 @@ public final class RemoteController: ObservableObject {
         if config.ui.monitoringEnabled { stopSource(); startSource() }
     }
     public var isMonitoring: Bool { monitor.isRunning || helper.isRunning }
+
+    /// The connected remote's model, in normal or exclusive mode.
+    public var connectedModel: FireTVRemoteModel? {
+        if let m = monitor.connectedModel { return m }
+        // In exclusive mode the helper only reports a status string; it sends
+        // the same friendly model name used below.
+        if case .connected(let name) = hidStatus {
+            return FireTVRemoteModel.all.first { $0.name == name }
+        }
+        return nil
+    }
+    public var connectedProductID: Int? { monitor.connectedProductID ?? connectedModel?.productID }
 
     // MARK: config mutation (autosaved)
 

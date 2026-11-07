@@ -61,6 +61,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSInputMonitoringUsageDescription</key><string>Fire TV Remote Studio reads button presses from your paired Fire TV remote.</string>
+  <key>NSAccessibilityUsageDescription</key><string>Fire TV Remote Studio sends the keyboard shortcuts and media keys you assign to the remote.</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHumanReadableCopyright</key><string>MIT License. Not affiliated with Amazon.</string>
 </dict></plist>

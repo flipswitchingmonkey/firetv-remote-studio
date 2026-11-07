@@ -187,8 +187,9 @@ struct DeviceSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.s3) {
                         SectionHeader(title: "Connect")
-                        KVRow(key: "Product", value: "Amazon Remote (Fire TV Stick 4K Select)")
-                        KVRow(key: "Vendor / Product", value: "0x0171 / 0x042F", mono: true)
+                        KVRow(key: "Model", value: ctl.connectedModel?.name ?? "—")
+                        KVRow(key: "Vendor / Product", value: ctl.connectedProductID.map { String(format: "0x0171 / 0x%04X", $0) } ?? "—", mono: true)
+                        KVRow(key: "App buttons", value: ctl.connectedModel.map { $0.hasAppButtons ? "A1–A4" : "None" } ?? "—")
                         KVRow(key: "Status", value: status)
                         KVRow(key: "Last report", value: ctl.lastRawReport, mono: true)
                         KVRow(key: "Last button", value: ctl.lastPressed?.displayName ?? "—")
@@ -271,7 +272,8 @@ struct SettingsView: View {
     @State private var loginError: String?
     @State private var confirmReset = false
     @State private var axTrusted = ActionExecutor.accessibilityTrusted
-    @State private var imTrusted = HIDMonitor.hasInputMonitoringAccess
+    @State private var imAccess = HIDMonitor.inputMonitoringAccess
+    @State private var imCheckedAt: Date?
     var body: some View {
         Form {
             Section("General") {
@@ -292,8 +294,21 @@ struct SettingsView: View {
             }
             Section("Permissions") {
                 LabeledContent {
-                    HStack { Button("Request permission") { HIDMonitor.requestInputMonitoringAccess() }; Button("System Settings") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!) }; Button("Re-check") { imTrusted = HIDMonitor.hasInputMonitoringAccess } }
-                } label: { Label(imTrusted ? "Input monitoring: allowed" : "Input monitoring: not allowed (required to read remote)", systemImage: imTrusted ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(imTrusted ? Theme.success : Theme.warning) }
+                    HStack {
+                        Button("Request permission") { HIDMonitor.requestInputMonitoringAccess(); refreshInputMonitoring() }
+                        Button("System Settings") { openInputMonitoringSettings() }
+                        Button("Re-check") { refreshInputMonitoring() }
+                    }
+                } label: {
+                    Label(inputMonitoringLabel, systemImage: inputMonitoringIcon)
+                        .foregroundStyle(inputMonitoringColor)
+                }
+                Text("macOS applies Input Monitoring changes only after the app is restarted. After enabling Fire TV Remote Studio in System Settings, quit and reopen the app. A build signed ad-hoc loses the grant on every rebuild; remove it with − in the list and add it again, or sign with a stable identity.")
+                    .font(Theme.caption).foregroundStyle(Theme.text3).fixedSize(horizontal: false, vertical: true)
+                if let imCheckedAt {
+                    Text("Last checked \(imCheckedAt.formatted(date: .omitted, time: .standard))")
+                        .font(Theme.caption).foregroundStyle(Theme.text3)
+                }
                 LabeledContent {
                     HStack { Button("Request permission") { ActionExecutor.promptAccessibility(); axTrusted = ActionExecutor.accessibilityTrusted }; Button("Re-check") { axTrusted = ActionExecutor.accessibilityTrusted } }
                 } label: { Label(axTrusted ? "Accessibility - Allowed" : "Accessibility - Not allowed (required to send keys)", systemImage: axTrusted ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(axTrusted ? Theme.success : Theme.warning) }
@@ -314,6 +329,35 @@ struct SettingsView: View {
             Button("Reset", role: .destructive) { ctl.resetToDefaults() }
             Button("Cancel", role: .cancel) {}
         } message: { Text("Layers, Assignments, Macros, and all learned code will disappear.") }
+    }
+
+    private var inputMonitoringLabel: String {
+        switch imAccess {
+        case .granted: return "Input monitoring: allowed"
+        case .denied: return "Input monitoring: denied (required to read remote)"
+        case .unknown: return "Input monitoring: not determined"
+        }
+    }
+    private var inputMonitoringIcon: String {
+        switch imAccess {
+        case .granted: return "checkmark.circle.fill"
+        case .denied: return "xmark.circle.fill"
+        case .unknown: return "questionmark.circle.fill"
+        }
+    }
+    private var inputMonitoringColor: Color {
+        switch imAccess {
+        case .granted: return Theme.success
+        case .denied: return Theme.danger
+        case .unknown: return Theme.warning
+        }
+    }
+    private func refreshInputMonitoring() {
+        imAccess = HIDMonitor.inputMonitoringAccess
+        imCheckedAt = Date()
+    }
+    private func openInputMonitoringSettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
     }
 }
 

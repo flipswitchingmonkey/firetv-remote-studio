@@ -1,13 +1,17 @@
 import Foundation
 import IOKit
 import IOKit.hid
+import FireTVIPC
 
 /// Owns the IOHIDManager for the Amazon Remote. Exactly one instance per process;
 /// the GUI app is the only process that should run it (opening the device twice
 /// from two processes is refused by IOKit anyway).
 public final class HIDMonitor {
-    public static let vendorID = 0x0171
-    public static let productID = 0x042F
+    public static let vendorID = FireTVIPC.vendorID
+    /// All supported Fire TV remote models (2nd gen `0x0413`, 3rd gen `0x042F`).
+    public static let productIDs = FireTVIPC.productIDs
+    public static var supportedModels: [FireTVRemoteModel] { FireTVRemoteModel.all }
+    public static func modelName(for productID: Int) -> String { FireTVRemoteModel.name(for: productID) }
 
     public enum Status: Equatable {
         case stopped
@@ -32,21 +36,43 @@ public final class HIDMonitor {
     private var retry: DispatchSourceTimer?
     private let bufferSize = 256   // 0xF0 audio reports are 81 bytes
 
+    /// Product ID of the remote currently open, and its known model if any.
+    public private(set) var connectedProductID: Int?
+    public var connectedModel: FireTVRemoteModel? {
+        connectedProductID.flatMap { FireTVRemoteModel.model(for: $0) }
+    }
+
     public init() {}
 
     /// Input Monitoring (TCC) state for this process.
-    public static var hasInputMonitoringAccess: Bool { IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted }
+    public enum InputMonitoringAccess: String, Sendable {
+        case granted
+        case denied
+        case unknown
+    }
+    public static var inputMonitoringAccess: InputMonitoringAccess {
+        switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
+        case kIOHIDAccessTypeGranted: return .granted
+        case kIOHIDAccessTypeDenied: return .denied
+        default: return .unknown
+        }
+    }
+    public static var hasInputMonitoringAccess: Bool { inputMonitoringAccess == .granted }
     /// Shows the macOS prompt that adds this app to Privacy & Security > Input Monitoring.
     @discardableResult public static func requestInputMonitoringAccess() -> Bool { IOHIDRequestAccess(kIOHIDRequestTypeListenEvent) }
 
     public func start() {
         guard !isRunning else { return }
-        if !Self.hasInputMonitoringAccess {
-            onEvent(.log("No input monitoring permission — requesting system dialog"))
+        let access = Self.inputMonitoringAccess
+        if access != .granted {
+            onEvent(.log("Input monitoring: \(access.rawValue) — requesting system dialog. Quit and reopen after granting."))
             Self.requestInputMonitoringAccess()
         }
         let m = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
-        IOHIDManagerSetDeviceMatching(m, [kIOHIDVendorIDKey: Self.vendorID, kIOHIDProductIDKey: Self.productID] as CFDictionary)
+        let matches: [[String: Int]] = Self.productIDs.map {
+            [kIOHIDVendorIDKey: Self.vendorID, kIOHIDProductIDKey: $0]
+        }
+        IOHIDManagerSetDeviceMatchingMultiple(m, matches as CFArray)
         let ctx = Unmanaged.passUnretained(self).toOpaque()
         IOHIDManagerRegisterDeviceMatchingCallback(m, { ctx, _, _, dev in
             Unmanaged<HIDMonitor>.fromOpaque(ctx!).takeUnretainedValue().deviceMatched(dev)
@@ -58,7 +84,8 @@ public final class HIDMonitor {
         manager = m
         isRunning = true
         status = .waitingForDevice
-        onEvent(.log("Start monitoring (vid 0x171 / pid 0x42f)"))
+        let ids = Self.productIDs.map { String(format: "0x%04X", $0) }.joined(separator: ", ")
+        onEvent(.log("Start monitoring (vid 0x0171 / pid \(ids))"))
     }
 
     public func stop() {
@@ -67,6 +94,7 @@ public final class HIDMonitor {
         for d in opened { IOHIDDeviceClose(d, IOOptionBits(kIOHIDOptionsTypeNone)) }
         for (_, b) in buffers { b.deallocate() }
         opened = []; buffers = [:]; pending = []
+        connectedProductID = nil
         IOHIDManagerUnscheduleFromRunLoop(m, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         IOHIDManagerClose(m, IOOptionBits(kIOHIDOptionsTypeNone))
         manager = nil
@@ -83,10 +111,22 @@ public final class HIDMonitor {
         return bytes.withUnsafeMutableBufferPointer { IOHIDDeviceSetReport(d, kIOHIDReportTypeOutput, CFIndex(id), $0.baseAddress!, $0.count) }
     }
 
-    private func name(_ d: IOHIDDevice) -> String { (IOHIDDeviceGetProperty(d, kIOHIDProductKey as CFString) as? String) ?? "Amazon Remote" }
+    private func productID(_ d: IOHIDDevice) -> Int {
+        (IOHIDDeviceGetProperty(d, kIOHIDProductIDKey as CFString) as? Int) ?? 0
+    }
+
+    /// Amazon's own product string ("AR" on the 2nd-generation remote).
+    private func rawName(_ d: IOHIDDevice) -> String {
+        (IOHIDDeviceGetProperty(d, kIOHIDProductKey as CFString) as? String) ?? "Amazon Remote"
+    }
+
+    /// Friendly model name, falling back to Amazon's product string.
+    private func name(_ d: IOHIDDevice) -> String {
+        FireTVRemoteModel.name(for: productID(d), fallback: rawName(d))
+    }
 
     private func deviceMatched(_ d: IOHIDDevice) {
-        onEvent(.log("Connected: \(name(d))"))
+        onEvent(.log("Connected: \(name(d)) [\(rawName(d)) \(String(format: "0x%04X", productID(d)))]"))
         pending.insert(d)
         if !tryOpen(d) { scheduleRetry() }
     }
@@ -95,6 +135,7 @@ public final class HIDMonitor {
         buffers.removeValue(forKey: d)?.deallocate()
         opened.remove(d); pending.remove(d)
         onEvent(.log("Disconnected: \(name(d))"))
+        if opened.isEmpty { connectedProductID = nil }
         status = .waitingForDevice
     }
 
@@ -114,6 +155,7 @@ public final class HIDMonitor {
                     .onEvent(.report(reportID: UInt8(truncatingIfNeeded: reportID), bytes: bytes))
             }, ctx)
             opened.insert(d)
+            connectedProductID = productID(d)
             status = .connected(name: name(d))
             onEvent(.log("Device opened: \(name(d))"))
             return true
