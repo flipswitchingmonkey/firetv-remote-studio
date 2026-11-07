@@ -19,6 +19,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
+enum FireTVMain {
+    static func main() {
+        // Must run before SwiftUI/Bundle resolves Localizable.strings.
+        LanguageManager.applyStoredLanguage()
+        FireTVRemoteApp.main()
+    }
+}
+
 struct FireTVRemoteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @Environment(\.openWindow) private var openWindow
@@ -60,16 +68,16 @@ struct MenuBarContent: View {
         if let b = ctl.lastPressed { Text("Last button: \(b.displayName)") }
         Divider()
         Button("Open editor") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }.keyboardShortcut("e")
-        Button(ctl.monitor.isRunning ? "Stop monitoring" : "Start monitoring") { ctl.setMonitoring(!ctl.monitor.isRunning) }
+        Button(ctl.monitor.isRunning ? String(localized: "Stop monitoring") : String(localized: "Start monitoring")) { ctl.setMonitoring(!ctl.monitor.isRunning) }
         Divider()
         Button("Exit") { NSApp.terminate(nil) }.keyboardShortcut("q")
     }
     var statusLine: String {
         switch ctl.hidStatus {
-        case .stopped: return "Not monitoring"
-        case .waitingForDevice: return "○ Remote not connected (waiting)"
-        case .connected(let n): return "● \(n) Connecting"
-        case .blocked: return "⚠ Cannot open device"
+        case .stopped: return String(localized: "Not monitoring")
+        case .waitingForDevice: return String(localized: "○ Remote not connected (waiting)")
+        case .connected(let n): return String(localized: "● \(n) Connecting")
+        case .blocked: return String(localized: "⚠ Cannot open device")
         }
     }
 }

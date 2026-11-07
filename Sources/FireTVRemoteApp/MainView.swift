@@ -109,10 +109,10 @@ struct TopBar: View {
     }
     var statusText: String {
         switch ctl.hidStatus {
-        case .connected: return "Bluetooth Connecting"
-        case .waitingForDevice: return "Not connected, waiting"
-        case .blocked: return "Cannot open (details)"
-        case .stopped: return "Not monitoring"
+        case .connected: return String(localized: "Bluetooth Connecting")
+        case .waitingForDevice: return String(localized: "Not connected, waiting")
+        case .blocked: return String(localized: "Cannot open (details)")
+        case .stopped: return String(localized: "Not monitoring")
         }
     }
     /// The layer in charge right now (highest priority). The full stack goes in the tooltip.
@@ -181,17 +181,17 @@ struct MicPill: View {
     }
     var label: String {
         switch ctl.micState {
-        case .disabled: return "Mic: Off"
-        case .ready: return RemoteController.micDevicePresent ? "Microphone Idle" : "No microphone introduced"
-        case .listening: return "Listening"
-        case .draining: return "Listening"
+        case .disabled: return String(localized: "Mic: Off")
+        case .ready: return RemoteController.micDevicePresent ? String(localized: "Microphone Idle") : String(localized: "No microphone introduced")
+        case .listening: return String(localized: "Listening")
+        case .draining: return String(localized: "Listening")
         }
     }
     var help: String {
         switch ctl.micState {
-        case .disabled: return "When mic is enabled in settings, voice enters \"Fire TV Remote Microphone\" only while mic button is held"
-        case .ready: return RemoteController.micDevicePresent ? "The voice only enters the \"Fire TV Remote Microphone\" while pressing the microphone button" : "Virtual microphone driver not installed (setup → microphone)"
-        default: return "Sending remote control voice to virtual microphone"
+        case .disabled: return String(localized: "When mic is enabled in settings, voice enters \"Fire TV Remote Microphone\" only while mic button is held")
+        case .ready: return RemoteController.micDevicePresent ? String(localized: "The voice only enters the \"Fire TV Remote Microphone\" while pressing the microphone button") : String(localized: "Virtual microphone driver not installed (setup → microphone)")
+        default: return String(localized: "Sending remote control voice to virtual microphone")
         }
     }
 }

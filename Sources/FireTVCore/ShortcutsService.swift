@@ -10,10 +10,10 @@ public final class ShortcutsService {
         case alreadyRunning
         public var errorDescription: String? {
             switch self {
-            case .cliMissing: return "\(ShortcutsService.binary) not found"
-            case .launchFailed(let s): return "failed to start shortcuts:\(s)"
-            case .exited(let c, let e): return "shortcuts failed with exit code\(c):\(e)"
-            case .alreadyRunning: return "Same shortcut is already running"
+            case .cliMissing: return String(localized: "\(ShortcutsService.binary) not found")
+            case .launchFailed(let s): return String(localized: "failed to start shortcuts:\(s)")
+            case .exited(let c, let e): return String(localized: "shortcuts failed with exit code\(String(c)):\(e)")
+            case .alreadyRunning: return String(localized: "Same shortcut is already running")
             }
         }
     }

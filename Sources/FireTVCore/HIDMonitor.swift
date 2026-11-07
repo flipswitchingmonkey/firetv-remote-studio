@@ -65,7 +65,7 @@ public final class HIDMonitor {
         guard !isRunning else { return }
         let access = Self.inputMonitoringAccess
         if access != .granted {
-            onEvent(.log("Input monitoring: \(access.rawValue) — requesting system dialog. Quit and reopen after granting."))
+            onEvent(.log(String(localized: "Input monitoring: \(access.rawValue) — requesting system dialog. Quit and reopen after granting.")))
             Self.requestInputMonitoringAccess()
         }
         let m = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
@@ -85,7 +85,7 @@ public final class HIDMonitor {
         isRunning = true
         status = .waitingForDevice
         let ids = Self.productIDs.map { String(format: "0x%04X", $0) }.joined(separator: ", ")
-        onEvent(.log("Start monitoring (vid 0x0171 / pid \(ids))"))
+        onEvent(.log(String(localized: "Start monitoring (vid 0x0171 / pid \(ids))")))
     }
 
     public func stop() {
@@ -100,7 +100,7 @@ public final class HIDMonitor {
         manager = nil
         isRunning = false
         status = .stopped
-        onEvent(.log("Stop monitoring"))
+        onEvent(.log(String(localized: "Stop monitoring")))
     }
 
     /// OUTPUT report to the open device (non-exclusive mode). Buffer must begin with the report ID on macOS BLE HID.
@@ -126,7 +126,7 @@ public final class HIDMonitor {
     }
 
     private func deviceMatched(_ d: IOHIDDevice) {
-        onEvent(.log("Connected: \(name(d)) [\(rawName(d)) \(String(format: "0x%04X", productID(d)))]"))
+        onEvent(.log(String(localized: "Connected: \(name(d)) [\(rawName(d)) \(String(format: "0x%04X", productID(d)))]")))
         pending.insert(d)
         if !tryOpen(d) { scheduleRetry() }
     }
@@ -134,7 +134,7 @@ public final class HIDMonitor {
     private func deviceRemoved(_ d: IOHIDDevice) {
         buffers.removeValue(forKey: d)?.deallocate()
         opened.remove(d); pending.remove(d)
-        onEvent(.log("Disconnected: \(name(d))"))
+        onEvent(.log(String(localized: "Disconnected: \(name(d))")))
         if opened.isEmpty { connectedProductID = nil }
         status = .waitingForDevice
     }
@@ -157,14 +157,14 @@ public final class HIDMonitor {
             opened.insert(d)
             connectedProductID = productID(d)
             status = .connected(name: name(d))
-            onEvent(.log("Device opened: \(name(d))"))
+            onEvent(.log(String(localized: "Device opened: \(name(d))")))
             return true
         case kIOReturnExclusiveAccess:
-            status = .blocked("Another process holds the remote (turn off Modify events for Amazon Remote in Karabiner-Elements, or quit old CLI)")
+            status = .blocked(String(localized: "Another process holds the remote (turn off Modify events for Amazon Remote in Karabiner-Elements, or quit old CLI)"))
         case kIOReturnNotPermitted:
-            status = .blocked("No input monitoring permission. Allow this app in System Settings > Privacy & Security > Input Monitoring")
+            status = .blocked(String(localized: "No input monitoring permission. Allow this app in System Settings > Privacy & Security > Input Monitoring"))
         default:
-            status = .blocked(String(format: "Cannot open device (0x%08x)", UInt32(bitPattern: r)))
+            status = .blocked(String(format: String(localized: "Cannot open device (0x%08x)"), UInt32(bitPattern: r)))
         }
         return false
     }
@@ -177,7 +177,7 @@ public final class HIDMonitor {
             guard let self else { return }
             let todo = self.pending.filter { !self.opened.contains($0) }
             if todo.isEmpty { self.retry?.cancel(); self.retry = nil; return }
-            for d in todo where self.tryOpen(d) { self.onEvent(.log("Device became available")) }
+            for d in todo where self.tryOpen(d) { self.onEvent(.log(String(localized: "Device became available"))) }
         }
         t.resume(); retry = t
     }

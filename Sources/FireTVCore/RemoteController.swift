@@ -70,10 +70,10 @@ public final class RemoteController: ObservableObject {
         case .missing:
             let names = (try? shortcuts.list()) ?? []
             loaded = Config.makeDefault(existingShortcuts: names)
-            if names.contains("FireTV-A1") { notices.append("Migrated existing FireTV-A1–A4 shortcuts to Layer 0") }
+            if names.contains("FireTV-A1") { notices.append(String(localized: "Migrated existing FireTV-A1–A4 shortcuts to Layer 0")) }
         case .corrupted(let err, let q):
             loaded = Config.makeDefault(existingShortcuts: (try? shortcuts.list()) ?? [])
-            notices.append("Started with defaults because config file was corrupted (\(err.localizedDescription))" + (q.map { ". Source file:\($0.lastPathComponent)" } ?? ""))
+            notices.append(String(localized: "Started with defaults because config file was corrupted (\(err.localizedDescription))") + (q.map { String(localized: ". Source file:\($0.lastPathComponent)") } ?? ""))
         }
         config = loaded
         startupNotices = notices
@@ -123,12 +123,12 @@ public final class RemoteController: ObservableObject {
         let payload: [UInt8] = [Self.micControlReport, on ? 0x01 : 0x00]
         if exclusiveActive {
             helper.setOutputReport(id: Self.micControlReport, data: payload) { [weak self] r in
-                if r != 0 { self?.micLastError = String(format: "Microphone control command failed (0x %08x)", UInt32(bitPattern: r)); self?.appendLog("mic enable(\(on)) failed 0x\(String(UInt32(bitPattern: r), radix: 16))") }
+                if r != 0 { self?.micLastError = String(format: String(localized: "Microphone control command failed (0x%08x)"), UInt32(bitPattern: r)); self?.appendLog(String(localized: "mic enable(\(on ? "on" : "off")) failed 0x\(String(UInt32(bitPattern: r), radix: 16))")) }
                 else { self?.micLastError = nil }
             }
         } else {
             let r = monitor.setOutputReport(id: Self.micControlReport, data: payload)
-            if r != kIOReturnSuccess { micLastError = String(format: "Microphone control command failed (0x %08x)", UInt32(bitPattern: r)); appendLog("mic enable(\(on)) failed 0x\(String(UInt32(bitPattern: r), radix: 16))") }
+            if r != kIOReturnSuccess { micLastError = String(format: String(localized: "Microphone control command failed (0x%08x)"), UInt32(bitPattern: r)); appendLog(String(localized: "mic enable(\(on ? "on" : "off")) failed 0x\(String(UInt32(bitPattern: r), radix: 16))")) }
             else { micLastError = nil }
         }
     }
@@ -144,7 +144,7 @@ public final class RemoteController: ObservableObject {
             helper.stop()
             exclusiveActive = false
             monitor.start()
-            if exclusiveRequested { appendLog("Exclusive mode unavailable (helper not approved); monitoring in normal mode") }
+            if exclusiveRequested { appendLog(String(localized: "Exclusive mode unavailable (helper not approved); monitoring in normal mode")) }
         }
     }
     private func stopSource() {
@@ -177,7 +177,7 @@ public final class RemoteController: ObservableObject {
         var c = config
         f(&c)
         let issues = c.validateAndRepair()
-        for i in issues { appendLog("Config repaired: \(i.message)") }
+        for i in issues { appendLog(String(localized: "Config repaired: \(i.message)")) }
         config = c
         engine.update(layers: c.layers, defaultLayer: c.defaultLayer)
         activeLayers = engine.activeLayers
@@ -191,7 +191,7 @@ public final class RemoteController: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: w)
     }
     public func saveNow() {
-        do { try store.save(config); saveError = nil } catch { saveError = error.localizedDescription; appendLog("Save failed: \(error.localizedDescription)") }
+        do { try store.save(config); saveError = nil } catch { saveError = error.localizedDescription; appendLog(String(localized: "Save failed: \(error.localizedDescription)")) }
     }
 
     public func assign(_ action: Action, to b: RemoteButton, layer: Int) {
@@ -202,12 +202,12 @@ public final class RemoteController: ObservableObject {
     }
     public func resetToDefaults() {
         mutate { c in c = Config.makeDefault(existingShortcuts: shortcutNames); c.ui = config.ui }
-        appendLog("Reset to defaults")
+        appendLog(String(localized: "Reset to defaults"))
     }
     public func importConfig(from data: Data) throws {
         let c = try ConfigCodec.decode(data)
         mutate { $0 = c }
-        appendLog("Config imported")
+        appendLog(String(localized: "Config imported"))
     }
     public func exportConfig() throws -> Data { try ConfigCodec.encode(config) }
 
@@ -266,14 +266,14 @@ public final class RemoteController: ObservableObject {
             if case .blocked = s, exclusiveActive, !helper.isRunning {
                 // helper died, refused, or was replaced: fall back so the remote is never left dead,
                 // then try to return to exclusive mode a few times.
-                appendLog("Exclusive mode stopped; switching to normal mode")
+                appendLog(String(localized: "Exclusive mode stopped; switching to normal mode"))
                 exclusiveActive = false
                 monitor.start()
                 if exclusiveRetries < 3 {
                     exclusiveRetries += 1
                     DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
                         guard let self, self.config.ui.monitoringEnabled, self.exclusiveRequested, !self.exclusiveActive else { return }
-                        self.appendLog("Attempting to return to exclusive mode (\(self.exclusiveRetries)/3)")
+                        self.appendLog(String(localized: "Attempting to return to exclusive mode (\(String(self.exclusiveRetries))/3)"))
                         self.startSource()
                     }
                 }
@@ -288,7 +288,7 @@ public final class RemoteController: ObservableObject {
                 return
             }
             lastRawReport = String(format: "id=0x%02x ", rid) + bytes.map { String(format: "%02x", $0) }.joined(separator: " ")
-            if config.ui.debugLog { appendLog("report \(lastRawReport)") }
+            if config.ui.debugLog { appendLog(String(localized: "report \(lastRawReport)")) }
             for t in tracker.feed(decodeReport(reportID: rid, bytes: bytes)) {
                 switch t {
                 case .press(let code): press(code)
@@ -309,12 +309,12 @@ public final class RemoteController: ObservableObject {
         if let learn = learningButton, button(for: code) == nil || learn != button(for: code) {
             mutate { $0.learnedCodes[learn] = code }
             learningButton = nil
-            appendLog("Learned: \(learn.displayName) = \(code)")
+            appendLog(String(localized: "Learned: \(learn.displayName) = \(String(describing: code))"))
             return
         }
         guard let b = button(for: code) else {
             lastUnknownCode = code
-            appendLog("Unknown button \(code)")
+            appendLog(String(localized: "Unknown button \(String(describing: code))"))
             return
         }
         lastPressed = b
@@ -365,16 +365,16 @@ public final class RemoteController: ObservableObject {
             case .layerStateChanged: activeLayers = engine.activeLayers
             case .defaultLayerChanged(let n):
                 mutate { $0.defaultLayer = n }
-                appendLog("Default layer changed to \(n)")
+                appendLog(String(localized: "Default layer changed to \(String(n))"))
             }
         }
     }
 
     private func handleExecutor(_ e: ActionExecutor.Event) {
         switch e {
-        case .started(let s): executing.append(s); appendLog("Started: \(s)")
-        case .finished(let s): executing.removeAll { $0 == s }; appendLog("Finished: \(s)")
-        case .failed(let s, let why): executing.removeAll { $0 == s }; lastError = "\(s): \(why)"; appendLog("Failed: \(s) — \(why)")
+        case .started(let s): executing.append(s); appendLog(String(localized: "Started: \(s)"))
+        case .finished(let s): executing.removeAll { $0 == s }; appendLog(String(localized: "Finished: \(s)"))
+        case .failed(let s, let why): executing.removeAll { $0 == s }; lastError = "\(s): \(why)"; appendLog(String(localized: "Failed: \(s) — \(why)"))
         }
     }
 

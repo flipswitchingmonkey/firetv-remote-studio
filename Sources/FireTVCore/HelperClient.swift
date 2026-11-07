@@ -38,15 +38,15 @@ public final class HelperClient: NSObject, FireTVHelperClientProtocol {
         c.remoteObjectInterface = NSXPCInterface(with: FireTVHelperProtocol.self)
         c.exportedInterface = NSXPCInterface(with: FireTVHelperClientProtocol.self)
         c.exportedObject = self
-        c.invalidationHandler = { [weak self] in DispatchQueue.main.async { self?.handleLost("helper disconnected") } }
-        c.interruptionHandler = { [weak self] in DispatchQueue.main.async { self?.handleLost("helper interrupted") } }
+        c.invalidationHandler = { [weak self] in DispatchQueue.main.async { self?.handleLost(String(localized: "helper disconnected")) } }
+        c.interruptionHandler = { [weak self] in DispatchQueue.main.async { self?.handleLost(String(localized: "helper interrupted")) } }
         c.resume()
         connection = c
         isRunning = true
         status = .waitingForDevice
-        onEvent(.log("Exclusive mode: connecting to helper"))
+        onEvent(.log(String(localized: "Exclusive mode: connecting to helper")))
         let proxy = c.remoteObjectProxyWithErrorHandler { [weak self] err in
-            DispatchQueue.main.async { self?.status = .blocked("unable to connect to helper:\(err.localizedDescription). Please enable helper in settings") }
+            DispatchQueue.main.async { self?.status = .blocked(String(localized: "unable to connect to helper:\(err.localizedDescription). Please enable helper in settings")) }
         } as? FireTVHelperProtocol
         proxy?.version { [weak self] v in
             DispatchQueue.main.async {
@@ -56,10 +56,10 @@ public final class HelperClient: NSObject, FireTVHelperClientProtocol {
                     if v >= 2 { proxy?.quit() }
                     self.isRunning = false; self.connection = nil
                     c.invalidate()
-                    self.status = .blocked("the helper was an older version (\(v)). Reconnect to the new helper")
+                    self.status = .blocked(String(localized: "the helper was an older version (\(String(v))). Reconnect to the new helper"))
                     return
                 }
-                proxy?.start { code, msg in DispatchQueue.main.async { self.onEvent(.log("helper start: \(msg)")) } }
+                proxy?.start { code, msg in DispatchQueue.main.async { self.onEvent(.log(String(localized: "helper start: \(msg)"))) } }
             }
         }
     }
@@ -78,7 +78,7 @@ public final class HelperClient: NSObject, FireTVHelperClientProtocol {
         (c?.remoteObjectProxy as? FireTVHelperProtocol)?.stop { c?.invalidate() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { c?.invalidate() }
         status = .stopped
-        onEvent(.log("Exclusive mode: stopped (device released)"))
+        onEvent(.log(String(localized: "Exclusive mode: stopped (device released)")))
     }
 
     private func handleLost(_ why: String) {

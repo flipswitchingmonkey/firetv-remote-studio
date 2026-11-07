@@ -224,17 +224,19 @@ struct RemoteKey: View {
         var t = spot.b.displayName
         if let c = info.code { t += "  [\(c)]" }
         switch info.restriction {
-        case .osHandled: t += "\nActs as macOS standard key (not assignable)"
-        case .codeUnknown: t += "\nUnlearned (learn on device screen)"
-        case .none: t += "\n" + (binding.map { $0.display } ?? (editor.editingLayer == 0 ? "Default Behavior (unset)" : "Inherit lower layer"))
+        case .osHandled: t += String(localized: "\nActs as macOS standard key (not assignable)")
+        case .codeUnknown: t += String(localized: "\nUnlearned (learn on device screen)")
+        case .none:
+            let fallback = editor.editingLayer == 0 ? String(localized: "Default Behavior (unset)") : String(localized: "Inherit lower layer")
+            t += "\n" + (binding.map { $0.display } ?? fallback)
         }
         return t
     }
     var accessibilityValue: String {
         switch info.restriction {
-        case .osHandled: return "Not assignable"
-        case .codeUnknown: return "Not learned"
-        case .none: return binding?.display ?? "Unset"
+        case .osHandled: return String(localized: "Not assignable")
+        case .codeUnknown: return String(localized: "Not learned")
+        case .none: return binding?.display ?? String(localized: "Unset")
         }
     }
 }

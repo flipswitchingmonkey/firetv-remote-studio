@@ -49,7 +49,7 @@ struct ButtonHeader: View {
                 Spacer()
                 if ctl.pressedNow.contains(button) { StatusPill(text: "Held", color: Theme.accent) }
             }
-            Text(info.code.map { "HID " + $0.description } ?? "Hid Not Learned").font(Theme.mono).foregroundStyle(Theme.text2)
+            Text(info.code.map { "HID " + $0.description } ?? String(localized: "Hid Not Learned")).font(Theme.mono).foregroundStyle(Theme.text2)
             if button == .mic && ctl.micEnabled {
                 Label("Sends audio to virtual mic while held (independent of assignment)", systemImage: "mic").font(Theme.caption).foregroundStyle(Theme.text2)
             }
@@ -81,7 +81,7 @@ struct ActionSection: View {
             SectionHeader(title: "Action · \(ctl.config.layers[safe: editor.editingLayer]?.name ?? "")")
             Picker("Type", selection: kind) {
                 ForEach(ActionKind.allCases.filter { !($0 == .transparent && editor.editingLayer == 0) }) { k in
-                    Label(k.rawValue, systemImage: k.icon).tag(k)
+                    Label(k.display, systemImage: k.icon).tag(k)
                 }
             }
             .labelsHidden().controlSize(.regular)
@@ -126,14 +126,14 @@ struct ActionEditor: View {
         switch action {
         case .passthrough:
             if let b = editor.selectedButton, let label = ctl.defaultBehavior(of: b) {
-                Text((isSet ? "" : "Because unset") + (ctl.exclusiveActive ? "App reproduces original function: \(label) (including long-press repeat)" : "macOS handles the original feature:\(label)")).font(Theme.caption).foregroundStyle(Theme.text2)
+                Text((isSet ? "" : String(localized: "Because unset")) + (ctl.exclusiveActive ? String(localized: "App reproduces original function: \(label) (including long-press repeat)") : String(localized: "macOS handles the original feature:\(label)"))).font(Theme.caption).foregroundStyle(Theme.text2)
             } else {
                 Text("This button does not normally do anything on macOS (default behavior = do nothing).").font(Theme.caption).foregroundStyle(Theme.text2)
             }
         case .none:
             Text("Does nothing when pressed (original function also disabled). Lower-layer assignments are not used.").font(Theme.caption).foregroundStyle(Theme.text2)
         case .transparent:
-            Text(editor.editingLayer == 0 ? "Unset. Select a type to assign." : "Unset. Inherits assignment from lower valid layer.").font(Theme.caption).foregroundStyle(Theme.text2)
+            Text(editor.editingLayer == 0 ? String(localized: "Unset. Select a type to assign.") : String(localized: "Unset. Inherits assignment from lower valid layer.")).font(Theme.caption).foregroundStyle(Theme.text2)
         case .shortcut(let name):
             ShortcutField(name: name) { action = .shortcut(name: $0) }
         case .key(let combo):
@@ -175,9 +175,9 @@ struct ShortcutField: View {
             Button { open.toggle() } label: {
                 HStack {
                     Image(systemName: "square.2.layers.3d").foregroundStyle(name.isEmpty ? Theme.text3 : Theme.accent)
-                    Text(name.isEmpty ? "Select shortcut…" : name).foregroundStyle(name.isEmpty ? Theme.text2 : Theme.text).lineLimit(1)
+                    Text(name.isEmpty ? String(localized: "Select shortcut…") : name).foregroundStyle(name.isEmpty ? Theme.text2 : Theme.text).lineLimit(1)
                     Spacer()
-                    if ctl.executing.contains("Shortcut\(name)") { ProgressView().controlSize(.mini) }
+                    if ctl.executing.contains("Shortcut \(name)") { ProgressView().controlSize(.mini) }
                     Image(systemName: "chevron.up.chevron.down").font(.system(size: 10)).foregroundStyle(Theme.text2)
                 }
                 .padding(.horizontal, 8).frame(height: Theme.controlH)
@@ -243,7 +243,7 @@ struct ShortcutPicker: View {
                 .onKeyPress(.return) { if let s = selection { onPick(s); return .handled }; return .ignored }
             }
             Divider()
-            Text("\(filtered.count) / \(ctl.shortcutNames.count) items · ↑↓ to move, Return to assign").font(Theme.caption).foregroundStyle(Theme.text3)
+            Text("\(String(filtered.count)) / \(String(ctl.shortcutNames.count)) items · ↑↓ to move, Return to assign").font(Theme.caption).foregroundStyle(Theme.text3)
                 .padding(.horizontal, 10).frame(height: 24, alignment: .leading)
         }
         .frame(width: 320, height: 360)
@@ -284,7 +284,7 @@ struct KeyComboEditor: View {
                 Section("Operation") { ForEach(KeyTable.navigation) { Text($0.name).tag($0.code) } }
             }.labelsHidden().disabled(combo.modifierOnly)
             if combo.modifierOnly {
-                Text(noModifiers ? "Select at least one modifier above." : "No regular key is sent. Hold the remote button to hold the selected modifiers down (for example fn).")
+                Text(noModifiers ? String(localized: "Select at least one modifier above.") : String(localized: "No regular key is sent. Hold the remote button to hold the selected modifiers down (for example fn)."))
                     .font(Theme.caption).foregroundStyle(noModifiers ? Theme.warning : Theme.text2)
             } else {
                 Text("Press and hold the key while pressing the button on the remote control (long press · Push-to-Talk compatible)").font(Theme.caption).foregroundStyle(Theme.text2)
@@ -340,7 +340,7 @@ struct URLField: View {
                 .onAppear { text = url }
                 .onChange(of: url) { _, u in if u != text { text = u } }
             HStack {
-                Text(text == url ? "Saved" : (valid ? "Save as Return" : "Enter a valid URL")).font(Theme.caption).foregroundStyle(text == url ? Theme.text3 : (valid ? Theme.text2 : Theme.warning))
+                Text(text == url ? String(localized: "Saved") : (valid ? String(localized: "Save as Return") : String(localized: "Enter a valid URL"))).font(Theme.caption).foregroundStyle(text == url ? Theme.text3 : (valid ? Theme.text2 : Theme.warning))
                 Spacer()
                 if text != url { Button("Save") { onChange(text) }.controlSize(.small).disabled(!valid) }
             }
@@ -357,10 +357,10 @@ struct LayerOpEditor: View {
     func make(_ k: Kind, _ n: Int) -> LayerOp { switch k { case .mo: return .momentary(n); case .tg: return .toggle(n); case .to: return .switchTo(n); case .df: return .setDefault(n) } }
     var desc: String {
         switch kind {
-        case .mo: return "Active while held (Momentary)"
-        case .tg: return "Toggles on each press. Other TG layers are cleared; TG to default layer returns to base (Toggle)"
-        case .to: return "Enable only that layer (Switch)"
-        case .df: return "Change default layer and keep after restart (Default)"
+        case .mo: return String(localized: "Active while held (Momentary)")
+        case .tg: return String(localized: "Toggles on each press. Other TG layers are cleared; TG to default layer returns to base (Toggle)")
+        case .to: return String(localized: "Enable only that layer (Switch)")
+        case .df: return String(localized: "Change default layer and keep after restart (Default)")
         }
     }
     var body: some View {
@@ -391,7 +391,7 @@ struct OtherLayersSection: View {
                     Button { editor.editingLayer = i } label: {
                         HStack {
                             Text("\(i) · \(ctl.config.layers[i].name)").font(Theme.caption).foregroundStyle(Theme.text2).frame(width: 110, alignment: .leading).lineLimit(1)
-                            Text(a.map(describe) ?? (i == 0 ? "Unset" : "Inherit")).font(Theme.caption).foregroundStyle(a == nil ? Theme.text3 : Theme.text).lineLimit(1)
+                            Text(a.map(describe) ?? (i == 0 ? String(localized: "Unset") : String(localized: "Inherit"))).font(Theme.caption).foregroundStyle(a == nil ? Theme.text3 : Theme.text).lineLimit(1)
                             Spacer()
                             if ctl.activeLayers.contains(i) { Circle().fill(Theme.accent).frame(width: 5, height: 5).help("Currently enabled") }
                         }

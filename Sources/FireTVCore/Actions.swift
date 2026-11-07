@@ -62,14 +62,14 @@ public enum MediaKey: String, Codable, CaseIterable, Hashable {
     case playPause, next, previous, fastForward, rewind, volumeUp, volumeDown, mute
     public var displayName: String {
         switch self {
-        case .playPause: return "Play/Pause"
-        case .next: return "Next"
-        case .previous: return "Previous"
-        case .fastForward: return "Fast Forward"
-        case .rewind: return "Rewind"
-        case .volumeUp: return "Volume Up"
-        case .volumeDown: return "Volume Down"
-        case .mute: return "Mute"
+        case .playPause: return String(localized: "Play/Pause")
+        case .next: return String(localized: "Next")
+        case .previous: return String(localized: "Previous")
+        case .fastForward: return String(localized: "Fast Forward")
+        case .rewind: return String(localized: "Rewind")
+        case .volumeUp: return String(localized: "Volume Up")
+        case .volumeDown: return String(localized: "Volume Down")
+        case .mute: return String(localized: "Mute")
         }
     }
     /// NX_KEYTYPE_* values from IOKit/hidsystem/ev_keymap.h
@@ -136,16 +136,16 @@ public indirect enum Action: Codable, Hashable {
 
     public var display: String {
         switch self {
-        case .none: return "Disabled"
+        case .none: return String(localized: "Disabled")
         case .transparent: return "▽"
-        case .passthrough: return "Default Behavior"
+        case .passthrough: return String(localized: "Default Behavior")
         case .shortcut(let n): return "⌘⇧ " + n
         case .key(let k): return k.display
-        case .launchApp(_, let name): return "Launch: \(name)"
-        case .openURL(let u): return "URL: \(u)"
+        case .launchApp(_, let name): return String(localized: "Launch: \(name)")
+        case .openURL(let u): return String(localized: "URL: \(u)")
         case .media(let m): return m.displayName
         case .layer(let op): return op.display
-        case .macro: return "Macro"
+        case .macro: return String(localized: "Macro")
         }
     }
     public var isTransparent: Bool { if case .transparent = self { return true }; return false }

@@ -4,7 +4,7 @@ import ServiceManagement
 import FireTVCore
 
 struct SheetFrame<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let width: CGFloat
     let height: CGFloat
     @ViewBuilder let content: Content
@@ -66,7 +66,7 @@ struct LayersSheet: View {
                 .controlSize(.small).padding(Theme.s3)
             }
         }
-        .alert("Are you sure you want to delete layer \(confirmDelete ?? 0)?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
+        .alert("Are you sure you want to delete layer \(String(confirmDelete ?? 0))?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
             Button("Delete", role: .destructive) { if let i = confirmDelete { ctl.mutate { _ = $0.removeLayer(i) } } }
             Button("Cancel", role: .cancel) {}
         } message: { Text("MO/TG/TO/DF referencing this layer will be None.") }
@@ -135,7 +135,7 @@ struct MacroEditor: View {
                         .buttonStyle(.plain)
                         .popover(isPresented: Binding(get: { editingStep == step.id }, set: { if !$0 { editingStep = nil } })) {
                             VStack(alignment: .leading, spacing: Theme.s3) {
-                                SectionHeader(title: "Step\(i + 1)")
+                                SectionHeader(title: "Step \(String(i + 1))")
                                 StepActionEditor(action: Binding(get: { step.action }, set: { a in edit { if $0.steps.indices.contains(i) { $0.steps[i].action = a } } }))
                             }.padding(Theme.s4).frame(width: 340)
                         }
@@ -154,7 +154,7 @@ struct MacroEditor: View {
             HStack {
                 Menu {
                     ForEach(ActionKind.allCases.filter { $0 != .macro && $0 != .transparent }) { k in
-                        Button { if let a = k.defaultAction(firstMacro: nil) { edit { $0.steps.append(MacroStep(action: a)) }; editingStep = macro.steps.last?.id } } label: { Label(k.rawValue, systemImage: k.icon) }
+                        Button { if let a = k.defaultAction(firstMacro: nil) { edit { $0.steps.append(MacroStep(action: a)) }; editingStep = macro.steps.last?.id } } label: { Label(k.display, systemImage: k.icon) }
                     }
                 } label: { Label("Add step", systemImage: "plus") }.frame(width: 150)
                 Spacer()
@@ -162,7 +162,7 @@ struct MacroEditor: View {
         }
         .padding(Theme.s4)
     }
-    func describe(_ a: Action) -> String { if case .shortcut(let n) = a { return n.isEmpty ? "Shortcut not selected" : n }; return a.display }
+    func describe(_ a: Action) -> String { if case .shortcut(let n) = a { return n.isEmpty ? String(localized: "Shortcut not selected") : n }; return a.display }
 }
 
 /// Action editor with its own kind picker (for macro steps).
@@ -171,7 +171,7 @@ struct StepActionEditor: View {
     @EnvironmentObject var ctl: RemoteController
     var body: some View {
         Picker("Type", selection: Binding(get: { ActionKind.of(action) }, set: { k in if k != ActionKind.of(action), let a = k.defaultAction(firstMacro: nil) { action = a } })) {
-            ForEach(ActionKind.allCases.filter { $0 != .macro && $0 != .transparent }) { k in Label(k.rawValue, systemImage: k.icon).tag(k) }
+            ForEach(ActionKind.allCases.filter { $0 != .macro && $0 != .transparent }) { k in Label(k.display, systemImage: k.icon).tag(k) }
         }.labelsHidden()
         ActionEditor(action: $action)
     }
@@ -189,13 +189,13 @@ struct DeviceSheet: View {
                         SectionHeader(title: "Connect")
                         KVRow(key: "Model", value: ctl.connectedModel?.name ?? "—")
                         KVRow(key: "Vendor / Product", value: ctl.connectedProductID.map { String(format: "0x0171 / 0x%04X", $0) } ?? "—", mono: true)
-                        KVRow(key: "App buttons", value: ctl.connectedModel.map { $0.hasAppButtons ? "A1–A4" : "None" } ?? "—")
+                        KVRow(key: "App buttons", value: ctl.connectedModel.map { $0.hasAppButtons ? "A1–A4" : String(localized: "None") } ?? "—")
                         KVRow(key: "Status", value: status)
                         KVRow(key: "Last report", value: ctl.lastRawReport, mono: true)
                         KVRow(key: "Last button", value: ctl.lastPressed?.displayName ?? "—")
                         KVRow(key: "Unknown code", value: ctl.lastUnknownCode?.description ?? "—", mono: true)
                         HStack {
-                            Button(ctl.isMonitoring ? "Stop monitoring" : "Start monitoring") { ctl.setMonitoring(!ctl.isMonitoring) }
+                            Button(ctl.isMonitoring ? String(localized: "Stop monitoring") : String(localized: "Start monitoring")) { ctl.setMonitoring(!ctl.isMonitoring) }
                             Menu("Simulated input") {
                                 Button("Press A1") { ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA1, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0]) }
                                 Button("Press A2") { ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA2, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0]) }
@@ -206,7 +206,7 @@ struct DeviceSheet: View {
                         SectionHeader(title: "Button status")
                         Text("Press \"Learn\" and then press the button on the actual machine to record the hid code. Buttons that arrive as keyboard codes remain unassignable because they are processed by macOS.").font(Theme.caption).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
                         if let l = ctl.learningButton {
-                            HStack { ProgressView().controlSize(.small); Text("Press\(l.displayName) on the actual machine...").font(Theme.caption); Spacer(); Button("Cancel") { ctl.learningButton = nil }.controlSize(.small) }
+                            HStack { ProgressView().controlSize(.small); Text("Press \(l.displayName) on the actual machine...").font(Theme.caption); Spacer(); Button("Cancel") { ctl.learningButton = nil }.controlSize(.small) }
                                 .padding(8).background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.radius))
                         }
                         ForEach(RemoteButton.allCases) { b in
@@ -255,10 +255,10 @@ struct DeviceSheet: View {
     }
     var status: String {
         switch ctl.hidStatus {
-        case .connected(let n): return "\(n) — Bluetooth connected"
-        case .waitingForDevice: return "Not connected (waiting)"
+        case .connected(let n): return String(localized: "\(n) — Bluetooth connected")
+        case .waitingForDevice: return String(localized: "Not connected (waiting)")
         case .blocked(let why): return "⚠ " + why
-        case .stopped: return "Not monitoring"
+        case .stopped: return String(localized: "Not monitoring")
         }
     }
 }
@@ -274,6 +274,8 @@ struct SettingsView: View {
     @State private var axTrusted = ActionExecutor.accessibilityTrusted
     @State private var imAccess = HIDMonitor.inputMonitoringAccess
     @State private var imCheckedAt: Date?
+    @State private var language = LanguageManager.current
+    @State private var showLanguageRestart = false
     var body: some View {
         Form {
             Section("General") {
@@ -285,6 +287,21 @@ struct SettingsView: View {
                     }
                 if let e = loginError { Text(e).font(Theme.caption).foregroundStyle(Theme.danger) }
                 Picker("Appearance", selection: $editor.appearance) { ForEach(EditorState.Appearance.allCases) { Text($0.label).tag($0) } }
+                LabeledContent("Language") {
+                    Picker("Language", selection: $language) {
+                        ForEach(AppLanguage.allCases) { l in Text(l.label).tag(l) }
+                    }
+                    .labelsHidden()
+                }
+                .onChange(of: language) { _, new in
+                    guard new != LanguageManager.current else { return }
+                    LanguageManager.set(new)
+                    showLanguageRestart = true
+                }
+                if language != LanguageManager.launchedLanguage {
+                    Text("Restart the app to apply the new language.")
+                        .font(Theme.caption).foregroundStyle(Theme.warning)
+                }
             }
             Section("Microphone (Fire TV Remote Microphone)") {
                 MicSettings()
@@ -311,7 +328,7 @@ struct SettingsView: View {
                 }
                 LabeledContent {
                     HStack { Button("Request permission") { ActionExecutor.promptAccessibility(); axTrusted = ActionExecutor.accessibilityTrusted }; Button("Re-check") { axTrusted = ActionExecutor.accessibilityTrusted } }
-                } label: { Label(axTrusted ? "Accessibility - Allowed" : "Accessibility - Not allowed (required to send keys)", systemImage: axTrusted ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(axTrusted ? Theme.success : Theme.warning) }
+                } label: { Label(axTrusted ? String(localized: "Accessibility - Allowed") : String(localized: "Accessibility - Not allowed (required to send keys)"), systemImage: axTrusted ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(axTrusted ? Theme.success : Theme.warning) }
             }
             Section("Config data") {
                 LabeledContent("Files") {
@@ -329,13 +346,17 @@ struct SettingsView: View {
             Button("Reset", role: .destructive) { ctl.resetToDefaults() }
             Button("Cancel", role: .cancel) {}
         } message: { Text("Layers, Assignments, Macros, and all learned code will disappear.") }
+        .alert("Restart required", isPresented: $showLanguageRestart) {
+            Button("Restart Now") { relaunchApp() }
+            Button("Later", role: .cancel) {}
+        } message: { Text("The display language changes after the app restarts.") }
     }
 
     private var inputMonitoringLabel: String {
         switch imAccess {
-        case .granted: return "Input monitoring: allowed"
-        case .denied: return "Input monitoring: denied (required to read remote)"
-        case .unknown: return "Input monitoring: not determined"
+        case .granted: return String(localized: "Input monitoring: allowed")
+        case .denied: return String(localized: "Input monitoring: denied (required to read remote)")
+        case .unknown: return String(localized: "Input monitoring: not determined")
         }
     }
     private var inputMonitoringIcon: String {
@@ -358,6 +379,15 @@ struct SettingsView: View {
     }
     private func openInputMonitoringSettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
+    }
+    private func relaunchApp() {
+        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
+        let path = Bundle.main.bundleURL.path
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", "sleep 1.0; /usr/bin/open -n \"\(path)\""]
+        try? p.run()
+        NSApp.terminate(nil)
     }
 }
 
@@ -382,17 +412,17 @@ struct ExclusiveModeSettings: View {
             if let e = error { Text(e).font(Theme.caption).foregroundStyle(Theme.danger) }
             Toggle("Use exclusive mode (when helper enabled)", isOn: Binding(get: { ctl.exclusiveRequested }, set: { ctl.setExclusive($0) }))
                 .disabled(state != .enabled)
-            Text(ctl.exclusiveActive ? "Operating in ● exclusive mode (remote is not visible from macOS. Unlock by exiting the app and stopping monitoring)" : "Operating in ○ Normal Mode").font(Theme.caption).foregroundStyle(ctl.exclusiveActive ? Theme.success : Theme.text2)
+            Text(ctl.exclusiveActive ? String(localized: "Operating in ● exclusive mode (remote is not visible from macOS. Unlock by exiting the app and stopping monitoring)") : String(localized: "Operating in ○ Normal Mode")).font(Theme.caption).foregroundStyle(ctl.exclusiveActive ? Theme.success : Theme.text2)
         }
         .onAppear { refresh() }
     }
     var stateText: String {
         switch state {
-        case .enabled: return "Enabled"
-        case .requiresApproval: return "Pending approval: enable FireTVRemoteBridge in System Settings → General → Login Items & Extensions → \"Allow in background\""
-        case .notRegistered: return "Not registered"
-        case .notFound: return "helper not found (rebuild in build-app.sh)"
-        case .unknown: return "Unknown"
+        case .enabled: return String(localized: "Enabled")
+        case .requiresApproval: return String(localized: "Pending approval: enable FireTVRemoteBridge in System Settings → General → Login Items & Extensions → \"Allow in background\"")
+        case .notRegistered: return String(localized: "Not registered")
+        case .notFound: return String(localized: "helper not found (rebuild in build-app.sh)")
+        case .unknown: return String(localized: "Unknown")
         }
     }
     func refresh() { state = HelperClient.installState; if state == .enabled, ctl.exclusiveRequested, !ctl.exclusiveActive, ctl.config.ui.monitoringEnabled { ctl.setExclusive(true) } }
@@ -414,9 +444,9 @@ struct MicSettings: View {
             Toggle("Enable microphone feature", isOn: Binding(get: { ctl.micEnabled }, set: { ctl.setMicEnabled($0) }))
             LabeledContent("Driver") {
                 HStack {
-                    Label(installed ? (present ? "Installed and recognized" : "Installed (device not recognized: recover after restart)") : "Not installed", systemImage: installed && present ? "checkmark.circle.fill" : "xmark.circle")
+                    Label(installed ? (present ? String(localized: "Installed and recognized") : String(localized: "Installed (device not recognized: recover after restart)")) : String(localized: "Not installed"), systemImage: installed && present ? "checkmark.circle.fill" : "xmark.circle")
                         .font(Theme.caption).foregroundStyle(installed && present ? Theme.success : Theme.warning)
-                    Button(installed ? "Repair (reinstall)" : "Install") { install() }.disabled(busy)
+                    Button(installed ? String(localized: "Repair (reinstall)") : String(localized: "Install")) { install() }.disabled(busy)
                     Button("Re-check") { refresh() }
                     if installed { Button("Uninstall…") { confirmUninstall = true }.disabled(busy) }
                 }
@@ -438,7 +468,12 @@ struct MicSettings: View {
         } message: { Text("Delete Hal driver and shared buffer, helper registration. The app body and settings will remain.") }
     }
     var stateText: String {
-        switch ctl.micState { case .disabled: return "○ Disabled"; case .ready: return "● Waiting (enter with microphone button)"; case .listening: return "input"; case .draining: return "● Input in progress (termination process)" }
+        switch ctl.micState {
+        case .disabled: return String(localized: "○ Disabled")
+        case .ready: return String(localized: "● Waiting (enter with microphone button)")
+        case .listening: return String(localized: "● Input in progress")
+        case .draining: return String(localized: "● Input in progress (termination process)")
+        }
     }
     func refresh() { installed = RemoteController.micDriverInstalled; present = RemoteController.micDevicePresent }
     func runAsAdmin(_ script: String, args: [String], done: @escaping (String?) -> Void) {
@@ -448,7 +483,7 @@ struct MicSettings: View {
         let unsafe: (String) -> Bool = { $0.contains("\"") || $0.contains("\\") || $0.contains("\n") || $0.contains("\r") }
         guard !unsafe(res), !unsafe(script), !args.contains(where: unsafe) else {
             busy = false
-            done("Invalid path")
+            done(String(localized: "Invalid path"))
             return
         }
         let cmd = ([res + "/" + script] + args).map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: " ")
@@ -458,14 +493,14 @@ struct MicSettings: View {
             let out = NSAppleScript(source: src)?.executeAndReturnError(&err)
             DispatchQueue.main.async {
                 busy = false
-                done(err != nil ? (err?["NSAppleScriptErrorMessage"] as? String ?? "Failed") : out?.stringValue)
+                done(err != nil ? (err?["NSAppleScriptErrorMessage"] as? String ?? String(localized: "Failed")) : out?.stringValue)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { refresh(); ctl.mic.prepare() }
             }
         }
     }
     func install() {
         let drv = (Bundle.main.resourcePath ?? "") + "/FireTVRemoteMicrophone.driver"
-        runAsAdmin("install-mic-driver.sh", args: [drv]) { message = $0.map { "Installation:\($0). If the device is not visible, wait a few seconds and \"reconfirm\"" } }
+        runAsAdmin("install-mic-driver.sh", args: [drv]) { message = $0.map { String(localized: "Installation:\($0). If the device is not visible, wait a few seconds and \"reconfirm\"") } }
     }
     func uninstall() {
         try? HelperClient.unregister()

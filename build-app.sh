@@ -28,6 +28,10 @@ cat > "$APP/Contents/Library/LaunchDaemons/com.uaaa.firetv-remote-bridge.helper.
 PLIST
 cp .build/release/FireTVRemoteApp "$APP/Contents/MacOS/FireTVRemoteBridge"
 cp icon/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# UI localisations (English source keys + Japanese table)
+for lproj in Resources/*.lproj; do
+  [ -d "$lproj" ] && cp -R "$lproj" "$APP/Contents/Resources/"
+done
 # --- microphone: HAL driver, install/uninstall scripts, bundled libopus
 ./hal/build-driver.sh >/dev/null
 cp -R hal/build/FireTVRemoteMicrophone.driver "$APP/Contents/Resources/"
@@ -54,6 +58,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>FireTVRemoteBridge</string>
   <key>CFBundleDisplayName</key><string>Fire TV Remote Studio</string>
   <key>CFBundleIdentifier</key><string>com.uaaa.firetv-remote-bridge</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>ja</string></array>
   <key>CFBundleVersion</key><string>1</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>

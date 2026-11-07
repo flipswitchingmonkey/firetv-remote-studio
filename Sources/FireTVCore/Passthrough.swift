@@ -25,11 +25,11 @@ public final class PassthroughEmitter {
     public static func mapping(for c: ButtonCode) -> Mapping? {
         switch c.reportID {
         case ButtonTable.keyboardReport:
-            if let (k, l) = keyboardUsages[c.code] { return Mapping(label: l, kind: .key(k)) }
-            if c.code == 0x66 { return Mapping(label: "Power", kind: .media(6)) }
+            if let (k, l) = keyboardUsages[c.code] { return Mapping(label: String(localized: String.LocalizationValue(l)), kind: .key(k)) }
+            if c.code == 0x66 { return Mapping(label: String(localized: "Power"), kind: .media(6)) }
             return nil
         case ButtonTable.consumerReport:
-            if let (m, l) = consumerUsages[c.code] ?? consumerUsages[c.code & 0xFF] { return Mapping(label: l, kind: .media(m)) }
+            if let (m, l) = consumerUsages[c.code] ?? consumerUsages[c.code & 0xFF] { return Mapping(label: String(localized: String.LocalizationValue(l)), kind: .media(m)) }
             return nil
         default: return nil
         }

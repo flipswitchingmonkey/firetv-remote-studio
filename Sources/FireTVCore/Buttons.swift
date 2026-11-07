@@ -14,27 +14,27 @@ public enum RemoteButton: String, Codable, CaseIterable, Identifiable, Hashable,
 
     public var displayName: String {
         switch self {
-        case .power: return "Power"
-        case .mic: return "Microphone"
-        case .up: return "Above"
-        case .down: return "Below"
-        case .left: return "Left"
-        case .right: return "Right"
-        case .select: return "OK"
-        case .back: return "Back"
-        case .home: return "Home"
-        case .menu: return "Menu"
-        case .rewind: return "Rewind"
-        case .playPause: return "Play/Pause"
-        case .fastForward: return "Fast Forward"
-        case .volumeUp: return "Volume Up"
-        case .volumeDown: return "Volume Down"
-        case .mute: return "Mute"
-        case .tv: return "Television"
-        case .a1: return "App 1 (A1)"
-        case .a2: return "App 2 (A2)"
-        case .a3: return "App 3 (A3)"
-        case .a4: return "App 4 (A4)"
+        case .power: return String(localized: "Power")
+        case .mic: return String(localized: "Microphone")
+        case .up: return String(localized: "Above")
+        case .down: return String(localized: "Below")
+        case .left: return String(localized: "Left")
+        case .right: return String(localized: "Right")
+        case .select: return String(localized: "OK")
+        case .back: return String(localized: "Back")
+        case .home: return String(localized: "Home")
+        case .menu: return String(localized: "Menu")
+        case .rewind: return String(localized: "Rewind")
+        case .playPause: return String(localized: "Play/Pause")
+        case .fastForward: return String(localized: "Fast Forward")
+        case .volumeUp: return String(localized: "Volume Up")
+        case .volumeDown: return String(localized: "Volume Down")
+        case .mute: return String(localized: "Mute")
+        case .tv: return String(localized: "Television")
+        case .a1: return String(localized: "App 1 (A1)")
+        case .a2: return String(localized: "App 2 (A2)")
+        case .a3: return String(localized: "App 3 (A3)")
+        case .a4: return String(localized: "App 4 (A4)")
         }
     }
 
