@@ -19,14 +19,14 @@ public enum MediaKey: String, Codable, CaseIterable, Hashable {
     case playPause, next, previous, fastForward, rewind, volumeUp, volumeDown, mute
     public var displayName: String {
         switch self {
-        case .playPause: return "再生/一時停止"
-        case .next: return "次へ"
-        case .previous: return "前へ"
-        case .fastForward: return "早送り"
-        case .rewind: return "巻き戻し"
-        case .volumeUp: return "音量+"
-        case .volumeDown: return "音量−"
-        case .mute: return "ミュート"
+        case .playPause: return "Play/Pause"
+        case .next: return "Next"
+        case .previous: return "Previous"
+        case .fastForward: return "Fast Forward"
+        case .rewind: return "Rewind"
+        case .volumeUp: return "Volume Up"
+        case .volumeDown: return "Volume Down"
+        case .mute: return "Mute"
         }
     }
     /// NX_KEYTYPE_* values from IOKit/hidsystem/ev_keymap.h
@@ -93,16 +93,16 @@ public indirect enum Action: Codable, Hashable {
 
     public var display: String {
         switch self {
-        case .none: return "無効"
+        case .none: return "Disabled"
         case .transparent: return "▽"
-        case .passthrough: return "デフォルト動作"
+        case .passthrough: return "Default Behavior"
         case .shortcut(let n): return "⌘⇧ " + n
         case .key(let k): return k.display
-        case .launchApp(_, let name): return "起動: \(name)"
+        case .launchApp(_, let name): return "Launch: \(name)"
         case .openURL(let u): return "URL: \(u)"
         case .media(let m): return m.displayName
         case .layer(let op): return op.display
-        case .macro: return "マクロ"
+        case .macro: return "Macro"
         }
     }
     public var isTransparent: Bool { if case .transparent = self { return true }; return false }

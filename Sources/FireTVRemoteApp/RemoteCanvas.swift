@@ -57,7 +57,7 @@ struct RemoteCanvas: View {
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(Theme.anim) { editor.selectedButton = nil } }   // click empty space to deselect
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Fire TV リモコン")
+        .accessibilityLabel("Fire TV remote control")
     }
 }
 
@@ -224,17 +224,17 @@ struct RemoteKey: View {
         var t = spot.b.displayName
         if let c = info.code { t += "  [\(c)]" }
         switch info.restriction {
-        case .osHandled: t += "\nmacOS 標準キーとして動作（割り当て不可）"
-        case .codeUnknown: t += "\n未学習（デバイス画面で学習）"
-        case .none: t += "\n" + (binding.map { $0.display } ?? (editor.editingLayer == 0 ? "デフォルト動作（未設定）" : "下位レイヤーを継承"))
+        case .osHandled: t += "\nActs as macOS standard key (not assignable)"
+        case .codeUnknown: t += "\nUnlearned (learn on device screen)"
+        case .none: t += "\n" + (binding.map { $0.display } ?? (editor.editingLayer == 0 ? "Default Behavior (unset)" : "Inherit lower layer"))
         }
         return t
     }
     var accessibilityValue: String {
         switch info.restriction {
-        case .osHandled: return "割り当て不可"
-        case .codeUnknown: return "未学習"
-        case .none: return binding?.display ?? "未設定"
+        case .osHandled: return "Not assignable"
+        case .codeUnknown: return "Not learned"
+        case .none: return binding?.display ?? "Unset"
         }
     }
 }

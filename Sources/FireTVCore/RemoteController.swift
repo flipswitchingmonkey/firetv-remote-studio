@@ -69,10 +69,10 @@ public final class RemoteController: ObservableObject {
         case .missing:
             let names = (try? shortcuts.list()) ?? []
             loaded = Config.makeDefault(existingShortcuts: names)
-            if names.contains("FireTV-A1") { notices.append("既存の FireTV-A1〜A4 ショートカットを Layer 0 に移行しました") }
+            if names.contains("FireTV-A1") { notices.append("Migrated existing FireTV-A1–A4 shortcuts to Layer 0") }
         case .corrupted(let err, let q):
             loaded = Config.makeDefault(existingShortcuts: (try? shortcuts.list()) ?? [])
-            notices.append("設定ファイルが壊れていたため初期設定で起動しました (\(err.localizedDescription))" + (q.map { "。元ファイル: \($0.lastPathComponent)" } ?? ""))
+            notices.append("Started with defaults because config file was corrupted (\(err.localizedDescription))" + (q.map { ". Source file:\($0.lastPathComponent)" } ?? ""))
         }
         config = loaded
         startupNotices = notices
@@ -119,12 +119,12 @@ public final class RemoteController: ObservableObject {
         let payload: [UInt8] = [Self.micControlReport, on ? 0x01 : 0x00]
         if exclusiveActive {
             helper.setOutputReport(id: Self.micControlReport, data: payload) { [weak self] r in
-                if r != 0 { self?.micLastError = String(format: "マイク制御コマンド失敗 (0x%08x)", UInt32(bitPattern: r)); self?.appendLog("mic enable(\(on)) failed 0x\(String(UInt32(bitPattern: r), radix: 16))") }
+                if r != 0 { self?.micLastError = String(format: "Microphone control command failed (0x %08x)", UInt32(bitPattern: r)); self?.appendLog("mic enable(\(on)) failed 0x\(String(UInt32(bitPattern: r), radix: 16))") }
                 else { self?.micLastError = nil }
             }
         } else {
             let r = monitor.setOutputReport(id: Self.micControlReport, data: payload)
-            if r != kIOReturnSuccess { micLastError = String(format: "マイク制御コマンド失敗 (0x%08x)", UInt32(bitPattern: r)); appendLog("mic enable(\(on)) failed 0x\(String(UInt32(bitPattern: r), radix: 16))") }
+            if r != kIOReturnSuccess { micLastError = String(format: "Microphone control command failed (0x %08x)", UInt32(bitPattern: r)); appendLog("mic enable(\(on)) failed 0x\(String(UInt32(bitPattern: r), radix: 16))") }
             else { micLastError = nil }
         }
     }
@@ -140,7 +140,7 @@ public final class RemoteController: ObservableObject {
             helper.stop()
             exclusiveActive = false
             monitor.start()
-            if exclusiveRequested { appendLog("排他モードは helper が未承認のため使えません。通常モードで監視します") }
+            if exclusiveRequested { appendLog("Exclusive mode unavailable (helper not approved); monitoring in normal mode") }
         }
     }
     private func stopSource() {
@@ -161,7 +161,7 @@ public final class RemoteController: ObservableObject {
         var c = config
         f(&c)
         let issues = c.validateAndRepair()
-        for i in issues { appendLog("設定修正: \(i.message)") }
+        for i in issues { appendLog("Config repaired: \(i.message)") }
         config = c
         engine.update(layers: c.layers, defaultLayer: c.defaultLayer)
         activeLayers = engine.activeLayers
@@ -175,7 +175,7 @@ public final class RemoteController: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: w)
     }
     public func saveNow() {
-        do { try store.save(config); saveError = nil } catch { saveError = error.localizedDescription; appendLog("保存失敗: \(error.localizedDescription)") }
+        do { try store.save(config); saveError = nil } catch { saveError = error.localizedDescription; appendLog("Save failed: \(error.localizedDescription)") }
     }
 
     public func assign(_ action: Action, to b: RemoteButton, layer: Int) {
@@ -186,12 +186,12 @@ public final class RemoteController: ObservableObject {
     }
     public func resetToDefaults() {
         mutate { c in c = Config.makeDefault(existingShortcuts: shortcutNames); c.ui = config.ui }
-        appendLog("初期設定に戻しました")
+        appendLog("Reset to defaults")
     }
     public func importConfig(from data: Data) throws {
         let c = try ConfigCodec.decode(data)
         mutate { $0 = c }
-        appendLog("設定をインポートしました")
+        appendLog("Config imported")
     }
     public func exportConfig() throws -> Data { try ConfigCodec.encode(config) }
 
@@ -233,7 +233,7 @@ public final class RemoteController: ObservableObject {
         if let b = config.learnedCodes.first(where: { $0.value.matches(code) })?.key { return b }
         return ButtonTable.knownCodes.first(where: { $0.value.matches(code) })?.key
     }
-    /// The original macOS behaviour of a button (what "デフォルト動作" re-emits in exclusive mode).
+    /// The original macOS behaviour of a button (what "Default Behavior" re-emits in exclusive mode).
     public func defaultBehavior(of b: RemoteButton) -> String? {
         guard let c = info(for: b).code else { return nil }
         if c.reportID == ButtonTable.vendorReport { return nil }
@@ -250,14 +250,14 @@ public final class RemoteController: ObservableObject {
             if case .blocked = s, exclusiveActive, !helper.isRunning {
                 // helper died, refused, or was replaced: fall back so the remote is never left dead,
                 // then try to return to exclusive mode a few times.
-                appendLog("排他モードが停止したため通常モードに切り替えます")
+                appendLog("Exclusive mode stopped; switching to normal mode")
                 exclusiveActive = false
                 monitor.start()
                 if exclusiveRetries < 3 {
                     exclusiveRetries += 1
                     DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
                         guard let self, self.config.ui.monitoringEnabled, self.exclusiveRequested, !self.exclusiveActive else { return }
-                        self.appendLog("排他モードへの復帰を試みます (\(self.exclusiveRetries)/3)")
+                        self.appendLog("Attempting to return to exclusive mode (\(self.exclusiveRetries)/3)")
                         self.startSource()
                     }
                 }
@@ -293,12 +293,12 @@ public final class RemoteController: ObservableObject {
         if let learn = learningButton, button(for: code) == nil || learn != button(for: code) {
             mutate { $0.learnedCodes[learn] = code }
             learningButton = nil
-            appendLog("学習: \(learn.displayName) = \(code)")
+            appendLog("Learned: \(learn.displayName) = \(code)")
             return
         }
         guard let b = button(for: code) else {
             lastUnknownCode = code
-            appendLog("未知のボタン \(code)")
+            appendLog("Unknown button \(code)")
             return
         }
         lastPressed = b
@@ -349,16 +349,16 @@ public final class RemoteController: ObservableObject {
             case .layerStateChanged: activeLayers = engine.activeLayers
             case .defaultLayerChanged(let n):
                 mutate { $0.defaultLayer = n }
-                appendLog("デフォルトレイヤーを \(n) に変更")
+                appendLog("Default layer changed to \(n)")
             }
         }
     }
 
     private func handleExecutor(_ e: ActionExecutor.Event) {
         switch e {
-        case .started(let s): executing.append(s); appendLog("開始: \(s)")
-        case .finished(let s): executing.removeAll { $0 == s }; appendLog("完了: \(s)")
-        case .failed(let s, let why): executing.removeAll { $0 == s }; lastError = "\(s): \(why)"; appendLog("失敗: \(s) — \(why)")
+        case .started(let s): executing.append(s); appendLog("Started: \(s)")
+        case .finished(let s): executing.removeAll { $0 == s }; appendLog("Finished: \(s)")
+        case .failed(let s, let why): executing.removeAll { $0 == s }; lastError = "\(s): \(why)"; appendLog("Failed: \(s) — \(why)")
         }
     }
 

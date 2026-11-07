@@ -56,20 +56,20 @@ struct MenuBarContent: View {
     @Environment(\.openWindow) private var openWindow
     var body: some View {
         Text(statusLine)
-        Text("有効なレイヤー: \(ctl.activeLayers.first.map { ctl.config.layers[safe: $0]?.name ?? "\($0)" } ?? "-")")
-        if let b = ctl.lastPressed { Text("最後のボタン: \(b.displayName)") }
+        Text("Active layers: \(ctl.activeLayers.first.map { ctl.config.layers[safe: $0]?.name ?? "\($0)" } ?? "-")")
+        if let b = ctl.lastPressed { Text("Last button: \(b.displayName)") }
         Divider()
-        Button("編集画面を開く") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }.keyboardShortcut("e")
-        Button(ctl.monitor.isRunning ? "監視を停止" : "監視を開始") { ctl.setMonitoring(!ctl.monitor.isRunning) }
+        Button("Open editor") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }.keyboardShortcut("e")
+        Button(ctl.monitor.isRunning ? "Stop monitoring" : "Start monitoring") { ctl.setMonitoring(!ctl.monitor.isRunning) }
         Divider()
-        Button("終了") { NSApp.terminate(nil) }.keyboardShortcut("q")
+        Button("Exit") { NSApp.terminate(nil) }.keyboardShortcut("q")
     }
     var statusLine: String {
         switch ctl.hidStatus {
-        case .stopped: return "○ 監視停止中"
-        case .waitingForDevice: return "○ リモコン未接続（待機中）"
-        case .connected(let n): return "● \(n) 接続中"
-        case .blocked: return "⚠ デバイスを開けません"
+        case .stopped: return "Not monitoring"
+        case .waitingForDevice: return "○ Remote not connected (waiting)"
+        case .connected(let n): return "● \(n) Connecting"
+        case .blocked: return "⚠ Cannot open device"
         }
     }
 }

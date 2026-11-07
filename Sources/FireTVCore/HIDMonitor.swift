@@ -42,7 +42,7 @@ public final class HIDMonitor {
     public func start() {
         guard !isRunning else { return }
         if !Self.hasInputMonitoringAccess {
-            onEvent(.log("入力監視の権限がありません — システムの許可ダイアログを要求します"))
+            onEvent(.log("No input monitoring permission — requesting system dialog"))
             Self.requestInputMonitoringAccess()
         }
         let m = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
@@ -58,7 +58,7 @@ public final class HIDMonitor {
         manager = m
         isRunning = true
         status = .waitingForDevice
-        onEvent(.log("監視開始 (vid 0x171 / pid 0x42f)"))
+        onEvent(.log("Start monitoring (vid 0x171 / pid 0x42f)"))
     }
 
     public func stop() {
@@ -72,7 +72,7 @@ public final class HIDMonitor {
         manager = nil
         isRunning = false
         status = .stopped
-        onEvent(.log("監視停止"))
+        onEvent(.log("Stop monitoring"))
     }
 
     /// OUTPUT report to the open device (non-exclusive mode). Buffer must begin with the report ID on macOS BLE HID.
@@ -86,7 +86,7 @@ public final class HIDMonitor {
     private func name(_ d: IOHIDDevice) -> String { (IOHIDDeviceGetProperty(d, kIOHIDProductKey as CFString) as? String) ?? "Amazon Remote" }
 
     private func deviceMatched(_ d: IOHIDDevice) {
-        onEvent(.log("接続: \(name(d))"))
+        onEvent(.log("Connected: \(name(d))"))
         pending.insert(d)
         if !tryOpen(d) { scheduleRetry() }
     }
@@ -94,7 +94,7 @@ public final class HIDMonitor {
     private func deviceRemoved(_ d: IOHIDDevice) {
         buffers.removeValue(forKey: d)?.deallocate()
         opened.remove(d); pending.remove(d)
-        onEvent(.log("切断: \(name(d))"))
+        onEvent(.log("Disconnected: \(name(d))"))
         status = .waitingForDevice
     }
 
@@ -115,14 +115,14 @@ public final class HIDMonitor {
             }, ctx)
             opened.insert(d)
             status = .connected(name: name(d))
-            onEvent(.log("デバイスを開きました: \(name(d))"))
+            onEvent(.log("Device opened: \(name(d))"))
             return true
         case kIOReturnExclusiveAccess:
-            status = .blocked("別のプロセスがリモコンを専有しています（Karabiner-Elements の Devices で Amazon Remote の Modify events をオフにするか、旧CLIを終了してください）")
+            status = .blocked("Another process holds the remote (turn off Modify events for Amazon Remote in Karabiner-Elements, or quit old CLI)")
         case kIOReturnNotPermitted:
-            status = .blocked("入力監視の権限がありません。システム設定 > プライバシーとセキュリティ > 入力監視 でこのアプリを許可してください")
+            status = .blocked("No input monitoring permission. Allow this app in System Settings > Privacy & Security > Input Monitoring")
         default:
-            status = .blocked(String(format: "デバイスを開けません (0x%08x)", UInt32(bitPattern: r)))
+            status = .blocked(String(format: "Cannot open device (0x%08x)", UInt32(bitPattern: r)))
         }
         return false
     }
@@ -135,7 +135,7 @@ public final class HIDMonitor {
             guard let self else { return }
             let todo = self.pending.filter { !self.opened.contains($0) }
             if todo.isEmpty { self.retry?.cancel(); self.retry = nil; return }
-            for d in todo where self.tryOpen(d) { self.onEvent(.log("デバイスが利用可能になりました")) }
+            for d in todo where self.tryOpen(d) { self.onEvent(.log("Device became available")) }
         }
         t.resume(); retry = t
     }

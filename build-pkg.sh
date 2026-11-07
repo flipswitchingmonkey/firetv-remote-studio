@@ -28,7 +28,7 @@ cat > dist/distribution.xml <<DIST
   <title>Fire TV Remote Studio</title>
   <options customize="never" require-scripts="true" hostArchitectures="arm64,x86_64"/>
   <domains enable_localSystem="true"/>
-  <welcome language="ja" mime-type="text/plain">Fire TV リモコンを Mac のカスタマイズ入力デバイスとして使うアプリと、内蔵マイクを macOS の入力デバイス「Fire TV Remote Microphone」として公開するオーディオドライバをインストールします。</welcome>
+  <welcome language="en" mime-type="text/plain">Installs the app that turns a Fire TV remote into a customizable input device for your Mac, plus the audio driver that exposes its built-in microphone as the macOS input device "Fire TV Remote Microphone".</welcome>
   <choices-outline><line choice="default"><line choice="app"/><line choice="driver"/></line></choices-outline>
   <choice id="default"/>
   <choice id="app" visible="false"><pkg-ref id="com.uaaa.firetv-remote-studio.app"/></choice>

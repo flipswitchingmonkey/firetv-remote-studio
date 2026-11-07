@@ -161,7 +161,7 @@ do {
     let back = try ConfigCodec.decode(data)
     expect(back == c, "JSON round trip")
     // japanese / spaces / symbols in names
-    c.layers[1].bindings[.a1] = .shortcut(name: "日本語 名前 (テスト) #1 & \"quote\"")
+    c.layers[1].bindings[.a1] = .shortcut(name: "Japanese Name (Test) #1 & \"quote\"")
     expect(try ConfigCodec.decode(try ConfigCodec.encode(c)) == c, "unicode shortcut name round trip")
     // validation
     var bad = c
@@ -198,7 +198,7 @@ do {
 
 // MARK: 6. Shortcuts service
 section("shortcuts service")
-expect(ShortcutsService.parseList("A\n日本語 ショートカット\nName with (symbols) #1\n\n") == ["A", "日本語 ショートカット", "Name with (symbols) #1"], "list parsing")
+expect(ShortcutsService.parseList("A\nJapanese Shortcut\nName with (symbols) # 1\n\n") == ["A", "Japanese Shortcut", "Name with (symbols) #1"], "list parsing")
 do {
     let svc = ShortcutsService()
     let names = try svc.list()
@@ -208,7 +208,7 @@ do {
     _ = sem.wait(timeout: .now() + 20)
     expect(ok, "real run of FireTV-A2 succeeds")
     let sem2 = DispatchSemaphore(value: 0); var err: Error?
-    svc.run("このショートカットは存在しない-\(UUID().uuidString.prefix(4))") { r in if case .failure(let e) = r { err = e }; sem2.signal() }
+    svc.run("This shortcut does not exist -\(UUID () .uuidString.prefix (4))") { r in if case .failure(let e) = r { err = e }; sem2.signal() }
     _ = sem2.wait(timeout: .now() + 20)
     expect(err != nil, "missing shortcut reports failure: \(err?.localizedDescription ?? "")")
     // double-run guard
@@ -228,7 +228,7 @@ expect(ButtonCode(reportID: 2, code: 0x23).matches(ButtonCode(reportID: 2, code:
 expect(!ButtonCode(reportID: 1, code: 0x23).matches(ButtonCode(reportID: 2, code: 0x0223)), "different report id never matches")
 expect(ButtonTable.info(for: .up, learned: [:], exclusive: true).restriction == .none, "exclusive mode lifts OS-handled restriction")
 expect(ButtonTable.info(for: .up, learned: [:], exclusive: false).restriction == .osHandled, "normal mode keeps restriction")
-expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 2, code: 0xE9))?.label == "音量+", "volume+ maps to media key")
+expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 2, code: 0xE9))?.label == "Volume Up", "volume+ maps to media key")
 expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 1, code: 0x52))?.label == "↑", "up arrow maps to key")
 expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 2, code: 0x0223)) == nil, "AC Home has no macOS default")
 expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 0xEF, code: 0xA1)) == nil, "vendor keys have no default")
@@ -306,7 +306,7 @@ do {
     // A1 on layer 0
     ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA1, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA1, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0])
     pump()
-    expect(executed == ["ショートカット FireTV-A1"], "A1 executes once despite repeat report")
+    expect(executed == ["Shortcut FireTV-A1"], "A1 executes once despite repeat report")
     expect(ctl.lastPressed == .a1, "lastPressed updated")
     // hold A2 (MO1), press A1 → layer 1 binding
     ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA2, 0, 0])
@@ -331,15 +331,15 @@ do {
     ctl2.setMonitoring(false)
     expect(ctl2.config.layers[1].bindings[.a1] == .shortcut(name: "FireTV-A4") && ctl2.config.learnedCodes[.home] != nil, "config persisted across restart")
     // missing shortcut warning
-    ctl2.assign(.shortcut(name: "存在しないやつ"), to: .a4, layer: 0)
+    ctl2.assign(.shortcut(name: "Nonexistent shortcut"), to: .a4, layer: 0)
     let deadline = Date().addingTimeInterval(10)
     while ctl2.shortcutNames.isEmpty && ctl2.shortcutsLoadError == nil && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
-    expect(ctl2.missingShortcuts == ["存在しないやつ"], "missing shortcut detected")
+    expect(ctl2.missingShortcuts == ["Nonexistent shortcut"], "missing shortcut detected")
     // corrupted file recovery
     try Data("{{{".utf8).write(to: store.url)
     let ctl3 = RemoteController(store: store, monitor: HIDMonitor(), shortcuts: ShortcutsService())
     ctl3.setMonitoring(false)
-    expect(ctl3.startupNotices.contains { $0.contains("壊れて") } && ctl3.config.layers.count == 4, "corrupt config → defaults + notice")
+    expect(ctl3.startupNotices.contains { $0.contains("Corrupted") } && ctl3.config.layers.count == 4, "corrupt config → defaults + notice")
     try? FileManager.default.removeItem(at: tmp)
 }
 

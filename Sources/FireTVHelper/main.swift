@@ -65,8 +65,8 @@ final class Seizer {
         guard r == kIOReturnSuccess else {
             let why: String
             switch r {
-            case kIOReturnExclusiveAccess: why = "別のプロセスが専有中 (Karabiner-Elements の Modify events をオフにしてください)"
-            case kIOReturnNotPrivileged: why = "権限不足 (helper が root で動作していません)"
+            case kIOReturnExclusiveAccess: why = "Another process holds it (turn off Modify events in Karabiner-Elements)"
+            case kIOReturnNotPrivileged: why = "Insufficient privileges (helper not running as root)"
             default: why = String(format: "IOHIDDeviceOpen(seize) failed 0x%08x", UInt32(bitPattern: r))
             }
             client?.statusChanged(status: 2, message: why)

@@ -31,39 +31,39 @@ public final class ActionExecutor {
         case .none, .transparent, .layer, .passthrough:
             completion?(true)
         case .shortcut(let name):
-            guard !name.isEmpty else { emit(.failed("ショートカット", "ショートカットが未選択です")); completion?(false); return }
-            emit(.started("ショートカット \(name)"))
+            guard !name.isEmpty else { emit(.failed("Shortcuts", "Shortcut not selected")); completion?(false); return }
+            emit(.started("Shortcut\(name)"))
             shortcuts.run(name) { r in
                 switch r {
-                case .success: self.emit(.finished("ショートカット \(name)")); completion?(true)
-                case .failure(let e): self.emit(.failed("ショートカット \(name)", e.localizedDescription)); completion?(false)
+                case .success: self.emit(.finished("Shortcut\(name)")); completion?(true)
+                case .failure(let e): self.emit(.failed("Shortcut\(name)", e.localizedDescription)); completion?(false)
                 }
             }
         case .key(let combo):
             guard Self.accessibilityTrusted else {
-                emit(.failed(combo.display, "キー送信にはアクセシビリティ権限が必要です（システム設定 > プライバシーとセキュリティ > アクセシビリティ）"))
+                emit(.failed(combo.display, "Key transmission requires accessibility permissions (System Settings > Privacy & Security > Accessibility)"))
                 Self.promptAccessibility(); completion?(false); return
             }
-            Self.postKey(combo); emit(.finished("キー \(combo.display)")); completion?(true)
+            Self.postKey(combo); emit(.finished("Key\(combo.display)")); completion?(true)
         case .launchApp(let path, let name):
             let url = URL(fileURLWithPath: path)
-            guard FileManager.default.fileExists(atPath: path) else { emit(.failed("起動 \(name)", "アプリが見つかりません: \(path)")); completion?(false); return }
+            guard FileManager.default.fileExists(atPath: path) else { emit(.failed("Launch \(name)", "App not found:\(path)")); completion?(false); return }
             NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { _, err in
-                if let err { self.emit(.failed("起動 \(name)", err.localizedDescription)); completion?(false) }
-                else { self.emit(.finished("起動 \(name)")); completion?(true) }
+                if let err { self.emit(.failed("Launch \(name)", err.localizedDescription)); completion?(false) }
+                else { self.emit(.finished("Launch \(name)")); completion?(true) }
             }
         case .openURL(let s):
-            guard let url = URL(string: s), url.scheme != nil else { emit(.failed("URL", "不正なURL: \(s)")); completion?(false); return }
+            guard let url = URL(string: s), url.scheme != nil else { emit(.failed("URL", "Invalid URL: \(s)")); completion?(false); return }
             let ok = NSWorkspace.shared.open(url)
-            emit(ok ? .finished("URL \(s)") : .failed("URL \(s)", "開けませんでした")); completion?(ok)
+            emit(ok ? .finished("URL \(s)") : .failed("URL \(s)", "Could not open")); completion?(ok)
         case .media(let m):
             Self.postMediaKey(m.nxKeyType); emit(.finished(m.displayName)); completion?(true)
         case .macro(let id):
-            guard let macro = macroLookup(id) else { emit(.failed("マクロ", "存在しないマクロ")); completion?(false); return }
+            guard let macro = macroLookup(id) else { emit(.failed("Macros", "Nonexistent macro")); completion?(false); return }
             lock.lock()
-            if macroRunning { lock.unlock(); emit(.failed("マクロ \(macro.name)", "別のマクロが実行中")); completion?(false); return }
+            if macroRunning { lock.unlock(); emit(.failed("Macro\(macro.name)", "Another macro is running")); completion?(false); return }
             macroRunning = true; lock.unlock()
-            emit(.started("マクロ \(macro.name)"))
+            emit(.started("Macro\(macro.name)"))
             macroQueue.async {
                 var ok = true
                 for step in macro.steps {
@@ -73,7 +73,7 @@ public final class ActionExecutor {
                     if step.delayMs > 0 { Thread.sleep(forTimeInterval: Double(step.delayMs) / 1000) }
                 }
                 self.lock.lock(); self.macroRunning = false; self.lock.unlock()
-                self.emit(.finished("マクロ \(macro.name)")); completion?(ok)
+                self.emit(.finished("Macro\(macro.name)")); completion?(ok)
             }
         }
     }
@@ -85,15 +85,15 @@ public final class ActionExecutor {
     @discardableResult
     public func keyDown(_ c: KeyCombo) -> Bool {
         guard Self.accessibilityTrusted else {
-            emit(.failed(c.display, "キー送信にはアクセシビリティ権限が必要です")); Self.promptAccessibility(); return false
+            emit(.failed(c.display, "Accessibility permission required to send keys")); Self.promptAccessibility(); return false
         }
         if !heldKeys.contains(c) { heldKeys.append(c) }
-        Self.post(c, down: true); emit(.started("キー \(c.display)（押下中）")); return true
+        Self.post(c, down: true); emit(.started("Key\(c.display) (pressing)")); return true
     }
     public func keyUp(_ c: KeyCombo) {
         guard let i = heldKeys.firstIndex(of: c) else { return }
         heldKeys.remove(at: i)
-        Self.post(c, down: false); emit(.finished("キー \(c.display)（押下中）"))
+        Self.post(c, down: false); emit(.finished("Key\(c.display) (pressing)"))
     }
     public func releaseAllKeys() {
         for c in heldKeys { Self.post(c, down: false) }; heldKeys.removeAll()
@@ -109,11 +109,11 @@ public final class ActionExecutor {
         t.schedule(deadline: .now() + 0.4, repeating: 0.06)
         t.setEventHandler { Self.postMediaKey(m.nxKeyType, down: true); Self.postMediaKey(m.nxKeyType, down: false) }
         t.resume(); heldMedia[m] = t
-        emit(.started("\(m.displayName)（押下中）"))
+        emit(.started("\(m.displayName) (pressing)"))
     }
     public func mediaUp(_ m: MediaKey) {
         guard let t = heldMedia.removeValue(forKey: m) else { return }
-        t.cancel(); Self.postMediaKey(m.nxKeyType, down: false); emit(.finished("\(m.displayName)（押下中）"))
+        t.cancel(); Self.postMediaKey(m.nxKeyType, down: false); emit(.finished("\(m.displayName) (pressing)"))
     }
     static func postMediaKey(_ key: Int32, down: Bool) {
         let flags: UInt = down ? 0xa00 : 0xb00
