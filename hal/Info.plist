@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleExecutable</key><string>FireTVRemoteMicrophone</string>
+  <key>CFBundleIdentifier</key><string>com.uaaa.firetv-remote-studio.mic</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>FireTVRemoteMicrophone</string>
+  <key>CFBundlePackageType</key><string>BNDL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>CFPlugInDynamicRegisterFunction</key><string></string>
+  <key>CFPlugInDynamicRegistration</key><string>NO</string>
+  <key>CFPlugInFactories</key><dict>
+    <key>5A2E3F10-7C1B-4F7E-9B21-0D4C1E6A7F01</key><string>FireTVMic_Create</string>
+  </dict>
+  <key>CFPlugInTypes</key><dict>
+    <key>443ABAB8-E7B3-491A-B985-BEB9187030DB</key><array><string>5A2E3F10-7C1B-4F7E-9B21-0D4C1E6A7F01</string></array>
+  </dict>
+</dict></plist>

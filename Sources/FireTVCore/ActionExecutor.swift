@@ -1,0 +1,167 @@
+import Foundation
+import AppKit
+import ApplicationServices
+
+/// Executes resolved actions. Reports outcomes through `onEvent` on the main queue.
+public final class ActionExecutor {
+    public enum Event: Equatable {
+        case started(String)
+        case finished(String)
+        case failed(String, String)
+    }
+    public let shortcuts: ShortcutsService
+    public var macroLookup: (UUID) -> Macro? = { _ in nil }
+    public var onEvent: (Event) -> Void = { _ in }
+    private let macroQueue = DispatchQueue(label: "firetv.macro")
+    private var macroRunning = false
+    private let lock = NSLock()
+
+    public init(shortcuts: ShortcutsService) { self.shortcuts = shortcuts }
+
+    private func emit(_ e: Event) { DispatchQueue.main.async { self.onEvent(e) } }
+
+    public static var accessibilityTrusted: Bool { AXIsProcessTrusted() }
+    public static func promptAccessibility() {
+        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(opts)
+    }
+
+    public func execute(_ action: Action, completion: ((Bool) -> Void)? = nil) {
+        switch action {
+        case .none, .transparent, .layer, .passthrough:
+            completion?(true)
+        case .shortcut(let name):
+            guard !name.isEmpty else { emit(.failed("ショートカット", "ショートカットが未選択です")); completion?(false); return }
+            emit(.started("ショートカット \(name)"))
+            shortcuts.run(name) { r in
+                switch r {
+                case .success: self.emit(.finished("ショートカット \(name)")); completion?(true)
+                case .failure(let e): self.emit(.failed("ショートカット \(name)", e.localizedDescription)); completion?(false)
+                }
+            }
+        case .key(let combo):
+            guard Self.accessibilityTrusted else {
+                emit(.failed(combo.display, "キー送信にはアクセシビリティ権限が必要です（システム設定 > プライバシーとセキュリティ > アクセシビリティ）"))
+                Self.promptAccessibility(); completion?(false); return
+            }
+            Self.postKey(combo); emit(.finished("キー \(combo.display)")); completion?(true)
+        case .launchApp(let path, let name):
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: path) else { emit(.failed("起動 \(name)", "アプリが見つかりません: \(path)")); completion?(false); return }
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { _, err in
+                if let err { self.emit(.failed("起動 \(name)", err.localizedDescription)); completion?(false) }
+                else { self.emit(.finished("起動 \(name)")); completion?(true) }
+            }
+        case .openURL(let s):
+            guard let url = URL(string: s), url.scheme != nil else { emit(.failed("URL", "不正なURL: \(s)")); completion?(false); return }
+            let ok = NSWorkspace.shared.open(url)
+            emit(ok ? .finished("URL \(s)") : .failed("URL \(s)", "開けませんでした")); completion?(ok)
+        case .media(let m):
+            Self.postMediaKey(m.nxKeyType); emit(.finished(m.displayName)); completion?(true)
+        case .macro(let id):
+            guard let macro = macroLookup(id) else { emit(.failed("マクロ", "存在しないマクロ")); completion?(false); return }
+            lock.lock()
+            if macroRunning { lock.unlock(); emit(.failed("マクロ \(macro.name)", "別のマクロが実行中")); completion?(false); return }
+            macroRunning = true; lock.unlock()
+            emit(.started("マクロ \(macro.name)"))
+            macroQueue.async {
+                var ok = true
+                for step in macro.steps {
+                    let sem = DispatchSemaphore(value: 0)
+                    DispatchQueue.main.async { self.execute(step.action) { r in if !r { ok = false }; sem.signal() } }
+                    _ = sem.wait(timeout: .now() + 30)
+                    if step.delayMs > 0 { Thread.sleep(forTimeInterval: Double(step.delayMs) / 1000) }
+                }
+                self.lock.lock(); self.macroRunning = false; self.lock.unlock()
+                self.emit(.finished("マクロ \(macro.name)")); completion?(ok)
+            }
+        }
+    }
+
+    // MARK: held keys (remote button held → key held, so hold-to-talk hotkeys work)
+
+    private var heldKeys: [KeyCombo] = []
+    /// Press (and keep down) a key combo. Returns false when accessibility is missing.
+    @discardableResult
+    public func keyDown(_ c: KeyCombo) -> Bool {
+        guard Self.accessibilityTrusted else {
+            emit(.failed(c.display, "キー送信にはアクセシビリティ権限が必要です")); Self.promptAccessibility(); return false
+        }
+        if !heldKeys.contains(c) { heldKeys.append(c) }
+        Self.post(c, down: true); emit(.started("キー \(c.display)（押下中）")); return true
+    }
+    public func keyUp(_ c: KeyCombo) {
+        guard let i = heldKeys.firstIndex(of: c) else { return }
+        heldKeys.remove(at: i)
+        Self.post(c, down: false); emit(.finished("キー \(c.display)（押下中）"))
+    }
+    public func releaseAllKeys() {
+        for c in heldKeys { Self.post(c, down: false) }; heldKeys.removeAll()
+        for (_, t) in heldMedia { t.cancel() }; for m in heldMedia.keys { Self.postMediaKey(m.nxKeyType, down: false) }; heldMedia.removeAll()
+    }
+
+    // MARK: held media keys (volume/transport repeat while the remote button stays down)
+    private var heldMedia: [MediaKey: DispatchSourceTimer] = [:]
+    public func mediaDown(_ m: MediaKey) {
+        if heldMedia[m] != nil { return }
+        Self.postMediaKey(m.nxKeyType, down: true)
+        let t = DispatchSource.makeTimerSource(queue: .main)
+        t.schedule(deadline: .now() + 0.4, repeating: 0.06)
+        t.setEventHandler { Self.postMediaKey(m.nxKeyType, down: true); Self.postMediaKey(m.nxKeyType, down: false) }
+        t.resume(); heldMedia[m] = t
+        emit(.started("\(m.displayName)（押下中）"))
+    }
+    public func mediaUp(_ m: MediaKey) {
+        guard let t = heldMedia.removeValue(forKey: m) else { return }
+        t.cancel(); Self.postMediaKey(m.nxKeyType, down: false); emit(.finished("\(m.displayName)（押下中）"))
+    }
+    static func postMediaKey(_ key: Int32, down: Bool) {
+        let flags: UInt = down ? 0xa00 : 0xb00
+        let data1 = Int((key << 16) | ((down ? 0xa : 0xb) << 8))
+        if let ev = NSEvent.otherEvent(with: .systemDefined, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: flags),
+                                       timestamp: 0, windowNumber: 0, context: nil, subtype: 8, data1: data1, data2: -1) {
+            ev.cgEvent?.post(tap: .cghidEventTap)
+        }
+    }
+
+    // MARK: key / media posting
+
+    static func post(_ c: KeyCombo, down: Bool) {
+        var flags = CGEventFlags()
+        if c.command { flags.insert(.maskCommand) }
+        if c.shift { flags.insert(.maskShift) }
+        if c.option { flags.insert(.maskAlternate) }
+        if c.control { flags.insert(.maskControl) }
+        let src = CGEventSource(stateID: .combinedSessionState)
+        guard let ev = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(c.keyCode), keyDown: down) else { return }
+        ev.flags = flags
+        ev.post(tap: .cghidEventTap)
+    }
+
+    static func postKey(_ c: KeyCombo) {
+        var flags = CGEventFlags()
+        if c.command { flags.insert(.maskCommand) }
+        if c.shift { flags.insert(.maskShift) }
+        if c.option { flags.insert(.maskAlternate) }
+        if c.control { flags.insert(.maskControl) }
+        let src = CGEventSource(stateID: .combinedSessionState)
+        guard let down = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(c.keyCode), keyDown: true),
+              let up = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(c.keyCode), keyDown: false) else { return }
+        down.flags = flags; up.flags = flags
+        down.post(tap: .cghidEventTap)
+        usleep(10_000)
+        up.post(tap: .cghidEventTap)
+    }
+
+    static func postMediaKey(_ key: Int32) {
+        func post(_ down: Bool) {
+            let flags: UInt = down ? 0xa00 : 0xb00
+            let data1 = Int((key << 16) | ((down ? 0xa : 0xb) << 8))
+            if let ev = NSEvent.otherEvent(with: .systemDefined, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: flags),
+                                           timestamp: 0, windowNumber: 0, context: nil, subtype: 8, data1: data1, data2: -1) {
+                ev.cgEvent?.post(tap: .cghidEventTap)
+            }
+        }
+        post(true); post(false)
+    }
+}
